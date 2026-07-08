@@ -1,0 +1,281 @@
+import Link from 'next/link';
+import { CopyCommand } from '@/components/copy-command';
+
+function HeroTerminal() {
+  return (
+    <div className="terminal" aria-label="Example lmspend report output">
+      <div className="terminal-bar">
+        <span className="dot" /><span className="dot" /><span className="dot" />
+        <span className="title">lmspend — team roll-up</span>
+      </div>
+      <div className="terminal-body">
+        <pre>{`  `}<span className="prompt">$</span>{` lmspend team
+
+  AI Coding Spend — June 2026            team total: `}<span className="amber">$3,418</span>{`
+  budget $3,000                          `}<span className="bad">over by $418 — alerted Jun 22</span>{`
+
+  by member                    by tool
+  alex@      $1,204             claude-code   $2,140
+  priya@       $986             cursor          $902
+  sam@         $772             codex           $376
+  jordan@      $456
+
+  most expensive day: Jun 24 — $291  `}<span className="dim">(alex, long refactor)</span>{`
+
+  `}<span className="dim">estimates at API list prices · export: lmspend export --csv</span>{`
+  `}<span className="prompt">$</span> <span className="cursor">▌</span>
+        </pre>
+      </div>
+    </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <div className="landing">
+      <header className="nav">
+        <Link href="/" className="wordmark">lmspend<span className="cursor">_</span></Link>
+        <nav className="nav-links" aria-label="Main">
+          <a href="#teams">For teams</a>
+          <a href="#how">How it works</a>
+          <a href="#privacy">Privacy</a>
+          <a href="#pricing">Pricing</a>
+        </nav>
+        <div className="nav-actions">
+          <Link href="/login" className="btn btn-ghost btn-sm">Sign in</Link>
+          <Link href="/api/checkout?plan=team" className="btn btn-primary btn-sm">Start a team</Link>
+        </div>
+      </header>
+
+      <section className="hero">
+        <div>
+          <p className="eyebrow">AI coding cost management</p>
+          <h1>Your team&apos;s AI coding spend, before the invoice.</h1>
+          <p className="lede">
+            Claude Code, Cursor, Codex, Gemini — every developer, every tool, one number. Set a
+            budget, get pinged the moment a runaway agent burns $80, and hand finance a clean
+            export. Local-first: no proxy, your code never leaves the machine.
+          </p>
+          <div className="hero-ctas">
+            <Link href="/api/checkout?plan=team" className="btn btn-primary">Start a team — $49/mo</Link>
+            <CopyCommand command="npx lmspend" />
+          </div>
+          <p className="trust">
+            Free CLI for individuals. Paid dashboard for teams. Estimates audited against official
+            vendor pricing — run <code>lmspend --explain</code> to check the math.
+          </p>
+        </div>
+        <HeroTerminal />
+      </section>
+
+      <section id="problem">
+        <p className="eyebrow">The problem</p>
+        <h2 className="section-title">The person who owns the AI budget is the one flying blindest.</h2>
+        <p className="section-lede">
+          In 2026 a developer runs 2–3 coding agents at once, each billed separately. Nobody adds
+          it up — until the invoice does.
+        </p>
+        <div className="cards-3">
+          <div className="panel card">
+            <h3>Surprise invoices</h3>
+            <p>
+              One long agentic session can burn $40–$80 in an afternoon. You find out at month-end,
+              when it&apos;s too late to do anything about it.
+            </p>
+          </div>
+          <div className="panel card">
+            <h3>Every vendor shows a slice</h3>
+            <p>
+              Cursor shows Cursor. Anthropic shows Anthropic. Nobody shows the total across tools —
+              and the total is what your card gets charged.
+            </p>
+          </div>
+          <div className="panel card">
+            <h3>Teams can&apos;t see per-seat</h3>
+            <p>
+              Five developers, three tools, usage-based overages. Who&apos;s driving the bill? Which
+              project? The budget owner has the least visibility of anyone.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <div className="privacy-band" id="teams">
+        <section className="inner">
+          <p className="eyebrow">For teams</p>
+          <h2 style={{ fontSize: 30, marginBottom: 10 }}>The layer the free trackers don&apos;t have.</h2>
+          <p className="section-lede" style={{ marginBottom: 32 }}>
+            Plenty of tools show one developer their own numbers. LMSpend is built for the person
+            who signs off on the spend.
+          </p>
+          <div className="cards-3">
+            <div className="panel card">
+              <h3>Budgets before the invoice</h3>
+              <p>Set a monthly cap. Get an email and a Slack ping the moment the team crosses it — not four weeks later.</p>
+            </div>
+            <div className="panel card">
+              <h3>Runaway-session alerts</h3>
+              <p>Any day that runs 3× your average triggers an alert. Catch the $80 debug loop the day it happens.</p>
+            </div>
+            <div className="panel card">
+              <h3>Per-member, per-tool roll-up</h3>
+              <p>One dashboard: who spent what, on which tool, on which project. Invite by link — members join on their own free accounts.</p>
+            </div>
+            <div className="panel card">
+              <h3>Finance-ready export</h3>
+              <p>One CSV your finance person will actually accept — by tool, model, and day, project names hashed.</p>
+            </div>
+            <div className="panel card">
+              <h3>Audited estimates</h3>
+              <p>Costs computed from real token counts × official vendor pricing, including cache rates. Show the math with <code>--explain</code>.</p>
+            </div>
+            <div className="panel card">
+              <h3>Local-first, no proxy</h3>
+              <p>We read logs your tools already write. We never sit in the request path, so we never see your code or prompts.</p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section id="how">
+        <p className="eyebrow">How it works</p>
+        <h2 className="section-title">Ten seconds to your real number.</h2>
+        <div className="steps">
+          <div className="panel step">
+            <h3>1 · Run it</h3>
+            <span className="cmd"><span className="dollar">$</span> npx lmspend</span>
+            <p className="muted small">No config, no account. It reads the usage logs your tools already write locally.</p>
+          </div>
+          <div className="panel step">
+            <h3>2 · See the whole picture</h3>
+            <span className="cmd"><span className="dollar">$</span> lmspend report</span>
+            <p className="muted small">Total spend by tool, model, project, and day, across every agent you run. Deltas vs. last month.</p>
+          </div>
+          <div className="panel step">
+            <h3>3 · Put it on the team dashboard</h3>
+            <span className="cmd"><span className="dollar">$</span> lmspend sync</span>
+            <p className="muted small">Opt-in: send aggregates to your workspace for history, budgets, alerts, and the team roll-up.</p>
+          </div>
+        </div>
+      </section>
+
+      <div className="privacy-band" id="privacy">
+        <section className="inner">
+          <p className="eyebrow">Privacy</p>
+          <h2>Local-first, or it doesn&apos;t ship.</h2>
+          <ul>
+            <li>The CLI is open source (MIT) and makes zero network calls by default.</li>
+            <li>Syncing is opt-in and sends aggregates only — token counts, costs, hashed project names. Never code. Never prompts. Never file paths.</li>
+            <li>We&apos;re not a gateway. Your traffic never routes through us — there&apos;s nothing for us to leak.</li>
+          </ul>
+        </section>
+      </div>
+
+      <section id="pricing">
+        <p className="eyebrow">Pricing</p>
+        <h2 className="section-title">The report is free. Teams pay for foresight.</h2>
+        <p className="section-lede">Prices in USD everywhere. Card payments handled by Kora.</p>
+        <div className="pricing-grid">
+          <div className="panel price-card">
+            <span className="plan-name">CLI</span>
+            <div className="price">$0</div>
+            <div className="per">free forever, open source</div>
+            <ul>
+              <li>Local reports across every tool</li>
+              <li>Share cards</li>
+              <li>JSON output &amp; --explain</li>
+              <li className="no">History &amp; trends</li>
+              <li className="no">Budgets &amp; alerts</li>
+            </ul>
+            <span className="cmd"><span className="dollar">$</span> npx lmspend</span>
+          </div>
+          <div className="panel price-card">
+            <span className="plan-name">Solo</span>
+            <div className="price">$19</div>
+            <div className="per">per month</div>
+            <ul>
+              <li>Everything in CLI</li>
+              <li>History &amp; trends</li>
+              <li>Monthly email report</li>
+              <li>Budget &amp; runaway alerts</li>
+              <li className="no">Team roll-ups</li>
+            </ul>
+            <Link href="/api/checkout?plan=solo" className="btn btn-ghost">Start with Solo</Link>
+          </div>
+          <div className="panel price-card price-featured">
+            <span className="plan-name">Team</span>
+            <div className="price">$49</div>
+            <div className="per">per month · 5 seats · $8 per extra seat</div>
+            <ul>
+              <li>Everything in Solo</li>
+              <li>Team workspace &amp; per-member roll-up</li>
+              <li>Slack budget alerts</li>
+              <li>Per-project attribution</li>
+              <li>CSV / expense export</li>
+            </ul>
+            <Link href="/api/checkout?plan=team" className="btn btn-primary">Start a team</Link>
+          </div>
+        </div>
+      </section>
+
+      <section id="faq" className="faq">
+        <p className="eyebrow">FAQ</p>
+        <h2 className="section-title">Fair questions.</h2>
+        <details>
+          <summary>How is this different from the free usage trackers?</summary>
+          <p>
+            Free CLIs show one developer their own numbers — and they&apos;re great at that. LMSpend
+            adds the team layer built for whoever owns the budget: caps, alerts before the invoice,
+            per-member and per-project roll-ups, Slack, and finance-ready exports. The individual
+            report stays free.
+          </p>
+        </details>
+        <details>
+          <summary>Is this an LLM proxy or gateway?</summary>
+          <p>No. We never touch your traffic. The CLI reads usage logs your tools already write to disk, after the fact.</p>
+        </details>
+        <details>
+          <summary>How accurate are the numbers?</summary>
+          <p>
+            They&apos;re estimates from your actual token counts × published model pricing (including
+            cache read/write rates), verified against the official Anthropic, OpenAI, and Google
+            pricing pages. Run <code>lmspend --explain</code> to see the exact math per model.
+          </p>
+        </details>
+        <details>
+          <summary>Which tools are supported?</summary>
+          <p>
+            Log parsing for Claude Code, Codex CLI, Cline, and Roo Code. <a href="/cursor">Cursor</a>{' '}
+            via its official Team Admin API (invoice-exact). Flat-rate subscriptions (Copilot,
+            Windsurf) via one line of config. Anything else — Gemini CLI, Aider, gateways — via{' '}
+            <code>lmspend import</code>.
+          </p>
+        </details>
+        <details>
+          <summary>Do my teammates each need to pay?</summary>
+          <p>
+            No. On the Team plan the owner pays; teammates join by invite link with their own free
+            accounts and sync their aggregates. One buyer, up to five seats.
+          </p>
+        </details>
+      </section>
+
+      <section>
+        <div className="panel" style={{ textAlign: 'center', padding: 48 }}>
+          <h2 className="section-title">Find out what your team actually spent last month.</h2>
+          <p className="muted" style={{ marginBottom: 24 }}>Start free on your own machine, or spin up a team workspace in two minutes.</p>
+          <div className="hero-ctas" style={{ justifyContent: 'center' }}>
+            <Link href="/api/checkout?plan=team" className="btn btn-primary">Start a team</Link>
+            <CopyCommand command="npx lmspend" />
+          </div>
+        </div>
+      </section>
+
+      <footer className="footer">
+        <span className="wordmark">lmspend<span className="cursor">_</span></span>
+        <span>Estimates at API list prices. Not affiliated with Anthropic, OpenAI, Google, or Cursor.</span>
+        <span><a href="#pricing">Pricing</a> · <a href="#faq">FAQ</a> · <Link href="/login">Sign in</Link></span>
+      </footer>
+    </div>
+  );
+}

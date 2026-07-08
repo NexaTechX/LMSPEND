@@ -1,0 +1,37 @@
+{
+  "name": "lmspend",
+  "version": "0.1.0",
+  "description": "See what you actually spend on AI coding tools — Claude Code, Codex, Cursor — from the logs already on your machine. Local-first, zero deps.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "lmspend": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "pricing.json"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "keywords": [
+    "ai",
+    "claude-code",
+    "cursor",
+    "codex",
+    "cost",
+    "usage",
+    "cli"
+  ],
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.0.0"
+  }
+}
