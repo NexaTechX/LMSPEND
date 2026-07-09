@@ -1,13 +1,21 @@
 import Link from 'next/link';
 import { isDevMode } from '@/lib/auth';
-import { signInWithEmail, signInWithGitHub } from './actions';
+import { signIn, signUp } from './actions';
 
 export const dynamic = 'force-dynamic';
+
+const ERRORS: Record<string, string> = {
+  email: 'That email doesn’t look right — try again.',
+  credentials: 'Wrong email or password. If you just signed up, confirm your email first.',
+  weak: 'Passwords need at least 8 characters.',
+  signup: 'Couldn’t create that account. Wait a minute and try again.',
+  auth: 'That link expired or was already used. Request a new one.',
+};
 
 export default async function Login({
   searchParams,
 }: {
-  searchParams: Promise<{ sent?: string; error?: string }>;
+  searchParams: Promise<{ next?: string; confirm?: string; reset?: string; error?: string }>;
 }) {
   const params = await searchParams;
 
@@ -32,51 +40,62 @@ export default async function Login({
       <div className="auth-card">
         <Link href="/" className="wordmark">lmspend<span className="cursor">_</span></Link>
         <h1>Sign in</h1>
-        <p className="muted">No password — we email you a sign-in link.</p>
+        <p className="muted">Email and password. New here? Create an account with the same form.</p>
 
-        {params.sent ? (
+        {params.confirm && (
           <div className="notice notice-ok">
-            Link sent. Check your inbox and open it on this device.
+            Account created. Open the confirmation link we emailed you, then sign in.
           </div>
-        ) : (
-          <>
-            <form action={signInWithEmail}>
-              <label className="field-label" htmlFor="email">Email</label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                placeholder="you@company.com"
-                className="input"
-                autoComplete="email"
-              />
-              <button type="submit" className="btn btn-primary btn-block">
-                Email me a sign-in link
-              </button>
-            </form>
-
-            <div className="divider"><span>or</span></div>
-
-            <form action={signInWithGitHub}>
-              <button type="submit" className="btn btn-ghost btn-block">
-                Continue with GitHub
-              </button>
-            </form>
-          </>
         )}
-
+        {params.reset && (
+          <div className="notice notice-ok">
+            If that email has an account, a reset link is on its way.
+          </div>
+        )}
         {params.error && (
           <div className="notice notice-err">
-            {params.error === 'email' && 'That email doesn’t look right — try again.'}
-            {params.error === 'send' && 'Couldn’t send the link. Wait a minute and try again.'}
-            {params.error === 'github' && 'GitHub sign-in failed. Try the email link instead.'}
-            {params.error === 'auth' && 'That link expired or was already used. Request a new one.'}
+            {ERRORS[params.error] ?? 'Something went wrong — try again.'}
           </div>
         )}
 
+        <form action={signIn}>
+          {params.next && <input type="hidden" name="next" value={params.next} />}
+
+          <label className="field-label" htmlFor="email">Email</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            required
+            placeholder="you@company.com"
+            className="input"
+            autoComplete="email"
+          />
+
+          <label className="field-label" htmlFor="password">Password</label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            required
+            minLength={8}
+            placeholder="At least 8 characters"
+            className="input"
+            autoComplete="current-password"
+          />
+
+          <button type="submit" className="btn btn-primary btn-block">Sign in</button>
+          <button type="submit" formAction={signUp} className="btn btn-ghost btn-block">
+            Create account
+          </button>
+        </form>
+
         <p className="muted small">
-          Signing in creates your account. Sync stays opt-in either way.
+          <Link href="/login/forgot">Forgot your password?</Link>
+        </p>
+
+        <p className="muted small">
+          Creating an account is free. Sync stays opt-in either way.
         </p>
       </div>
     </main>

@@ -65,7 +65,7 @@ Two products, one funnel:
 
 ### v2 — Paid dashboard (weeks 3–6) — P0 for revenue
 
-- Auth (email magic link + GitHub OAuth), billing via Merchant of Record (Dodo Payments — Stripe unavailable in Nigeria; USD pricing unchanged; see [payments.md](payments.md)).
+- Auth (email + password, confirmed by email), billing via Merchant of Record (Dodo Payments — Stripe unavailable in Nigeria; USD pricing unchanged; see [payments.md](payments.md)).
 - History & trends (spend over time, by tool/model/project).
 - **Budgets & alerts:** "Slack/email me at $X" per team or per project.
 - Team workspaces: invite members, roll-up across seats.

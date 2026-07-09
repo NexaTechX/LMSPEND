@@ -19,3 +19,14 @@ export async function currentUserEmail(): Promise<string | null> {
 export function isDevMode(): boolean {
   return !supabaseConfigured();
 }
+
+/**
+ * A `?next=` destination that cannot leave this origin.
+ * Rejects absolute URLs and protocol-relative paths ("//evil.com", "/\evil.com").
+ * Returns null when there's nothing safe to redirect to.
+ */
+export function safeNextPath(next: string | null | undefined): string | null {
+  if (!next || !next.startsWith('/')) return null;
+  if (next.startsWith('//') || next.startsWith('/\\')) return null;
+  return next;
+}

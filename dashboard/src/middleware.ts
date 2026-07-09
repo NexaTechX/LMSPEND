@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-const PROTECTED_PREFIXES = ['/dashboard', '/settings', '/team', '/join', '/admin'];
+const PROTECTED_PREFIXES = ['/dashboard', '/settings', '/team', '/join', '/admin', '/auth/update-password'];
 
 export async function middleware(request: NextRequest) {
   // Dev mode without Supabase: everything is open, dashboard uses the dev identity.

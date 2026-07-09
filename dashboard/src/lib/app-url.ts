@@ -17,7 +17,7 @@ export function resolveAppUrl(): string {
   return 'http://localhost:3000';
 }
 
-/** Where Supabase sends users back after a magic link or OAuth round-trip. */
+/** Where Supabase sends users back after a confirmation or password-reset email. */
 export function authCallbackUrl(): string {
   return `${resolveAppUrl()}/auth/callback`;
 }

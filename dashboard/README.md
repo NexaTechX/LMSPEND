@@ -1,6 +1,6 @@
 # LMSpend Dashboard
 
-Next.js app: the paid layer. Supabase auth (magic link + GitHub) and Postgres, opt-in aggregate syncs from the CLI, Kora (Korapay) card payments in USD (individual-business friendly for Nigeria — see [docs/payments.md](../docs/payments.md)), Resend emails, share links with OG preview cards.
+Next.js app: the paid layer. Supabase auth (email + password) and Postgres, opt-in aggregate syncs from the CLI, Kora (Korapay) card payments in USD (individual-business friendly for Nigeria — see [docs/payments.md](../docs/payments.md)), Resend emails, share links with OG preview cards.
 
 Runs in two modes automatically:
 - **Dev mode** (no Supabase env vars): no sign-in, in-memory data, `dev-key-123` works for sync. Zero setup.
@@ -26,20 +26,19 @@ From `../cli`: `npm run dev -- sync --url http://localhost:3000 --key dev-key-12
    NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon public key>
    SUPABASE_SERVICE_ROLE_KEY=<service_role key — server-only, never expose>
    ```
-4. **Auth URLs:** Authentication → URL Configuration → set Site URL to `http://localhost:3000` (later: your production domain) and add `http://localhost:3000/auth/callback` to Redirect URLs.
-5. **Magic links work immediately** (Supabase's built-in email, fine for testing; add a custom SMTP sender before launch so emails come from your domain).
-6. **GitHub OAuth (optional but recommended for a dev audience):** GitHub → Settings → Developer settings → New OAuth App. Homepage = your URL, callback = `https://<ref>.supabase.co/auth/v1/callback`. Paste client ID/secret into Supabase → Authentication → Providers → GitHub.
-7. Restart `npm run dev` — the app flips to production mode on its own: `/dashboard` and `/settings` now require sign-in, API keys persist in Postgres.
+4. **Auth URLs:** Authentication → URL Configuration → set Site URL to `http://localhost:3000` (later: your production domain) and add `http://localhost:3000/**` to Redirect URLs. The wildcard matters — confirmation and reset links come back as `/auth/callback?next=…`, and an exact-path entry rejects the query string.
+5. **Providers:** Authentication → Providers → enable **Email** and leave **Confirm email** on. New accounts stay inactive until the user opens the confirmation link. Supabase's built-in email works immediately; add a custom SMTP sender before launch so mail comes from your domain.
+6. Restart `npm run dev` — the app flips to production mode on its own: `/dashboard` and `/settings` now require sign-in, API keys persist in Postgres.
 
 ## Structure
 
 | Path | What |
 |---|---|
 | `src/app/page.tsx` | Landing page (terminal-receipt hero, pricing, FAQ) |
-| `src/app/login/` | Magic link + GitHub sign-in |
+| `src/app/login/` | Email + password sign-in, sign-up, forgot password |
 | `src/app/(app)/dashboard/` | Spend overview — stats, charts, history, onboarding empty state |
 | `src/app/(app)/settings/` | API keys (create/revoke, shown once), plan & billing |
-| `src/app/auth/` | OAuth/magic-link callback + signout |
+| `src/app/auth/` | Email-link callback, set-new-password, signout |
 | `src/app/api/sync` | CLI upload — bearer key, strict validation, returns spend percentile |
 | `src/app/api/checkout` | Creates a Kora hosted USD checkout and redirects |
 | `src/app/api/webhooks/billing` | Kora webhooks → 31 days of access per charge (`paid_until`) |
