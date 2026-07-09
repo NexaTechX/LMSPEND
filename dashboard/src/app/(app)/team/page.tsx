@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { CostMath } from '@/components/cost-math';
+import { resolveAppUrl } from '@/lib/app-url';
 import { currentUserEmail } from '@/lib/auth';
 import { can } from '@/lib/plan';
 import { getStore, TEAM_SEATS, type SpendBucket } from '@/lib/store';
@@ -22,7 +23,7 @@ export default async function TeamPage() {
   const store = getStore();
   const user = await store.ensureUser(email);
   const access = can(user);
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  const appUrl = resolveAppUrl();
 
   if (!access.teamFeatures) {
     return (

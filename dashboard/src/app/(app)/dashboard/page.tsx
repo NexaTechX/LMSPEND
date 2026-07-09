@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { CostMath } from '@/components/cost-math';
 import { LiveRefresh } from '@/components/live-refresh';
+import { resolveAppUrl } from '@/lib/app-url';
 import { currentUserEmail } from '@/lib/auth';
 import { can } from '@/lib/plan';
 import { getStore, topPercentile, type SpendBucket } from '@/lib/store';
@@ -118,7 +119,7 @@ export default async function Dashboard() {
   const budget = access.budgets ? await store.getBudget(email) : null;
   const current = months[0];
   const previous = months[1];
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  const appUrl = resolveAppUrl();
 
   if (!current) {
     return (

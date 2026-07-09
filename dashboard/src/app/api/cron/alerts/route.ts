@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { resolveAppUrl } from '@/lib/app-url';
 import { budgetAlertHtml, deltaAlertHtml, postSlack, renewalReminderHtml, sendEmail } from '@/lib/email';
 import { isPaid } from '@/lib/plan';
 import { getStore } from '@/lib/store';
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   const store = getStore();
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  const appUrl = resolveAppUrl();
   const now = new Date();
   const month = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
   const results = { budgetAlerts: 0, deltaAlerts: 0, renewalReminders: 0, expired: 0 };

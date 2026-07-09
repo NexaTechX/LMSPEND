@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { resolveAppUrl } from '@/lib/app-url';
 import { monthlyReportHtml, sendEmail } from '@/lib/email';
 import { isPaid } from '@/lib/plan';
 import { getStore } from '@/lib/store';
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   const store = getStore();
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  const appUrl = resolveAppUrl();
 
   const now = new Date();
   const last = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));

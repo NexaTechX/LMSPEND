@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { resolveAppUrl } from '@/lib/app-url';
 import { getStore, type ShareCardData } from '@/lib/store';
 
 /**
@@ -40,6 +41,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   };
 
   const slug = await getStore().createShare(data);
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  const appUrl = resolveAppUrl();
   return NextResponse.json({ ok: true, slug, url: `${appUrl}/b/${slug}` });
 }

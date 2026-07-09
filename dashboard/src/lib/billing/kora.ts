@@ -1,4 +1,5 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { resolveAppUrl } from '@/lib/app-url';
 import type { BillingEvent, BillingProvider, Plan } from './types';
 import { PLAN_PRICES_USD } from './types';
 
@@ -45,7 +46,7 @@ export const koraProvider: BillingProvider = {
   name: 'kora',
 
   async createCheckout(plan: Plan, email: string): Promise<string> {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+    const appUrl = resolveAppUrl();
     const currency = process.env.KORA_CURRENCY ?? 'USD';
 
     const res = await fetch(`${API_BASE}/charges/initialize`, {

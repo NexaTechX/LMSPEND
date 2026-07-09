@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { resolveAppUrl } from '@/lib/app-url';
 import { currentUserEmail, isDevMode } from '@/lib/auth';
 import { can, planBadge } from '@/lib/plan';
 import { getStore } from '@/lib/store';
@@ -18,7 +19,7 @@ export default async function Settings() {
   const newKey = await readNewKeyOnce();
   const budget = access.budgets ? await store.getBudget(email) : null;
   const slackWebhook = access.budgets ? await store.getSlackWebhook(email) : null;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  const appUrl = resolveAppUrl();
 
   return (
     <main>
