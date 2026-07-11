@@ -1,9 +1,18 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { currentUserEmail } from '@/lib/auth';
+import { pageMetadata } from '@/lib/seo';
 import { getStore } from '@/lib/store';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = pageMetadata({
+  title: 'Join team',
+  description: 'Accept a LMSpend team invite.',
+  path: '/join',
+  index: false,
+});
 
 async function accept(formData: FormData): Promise<void> {
   'use server';

@@ -1,9 +1,18 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { isDevMode } from '@/lib/auth';
+import { pageMetadata } from '@/lib/seo';
 import { requestPasswordReset } from '../actions';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = pageMetadata({
+  title: 'Reset password',
+  description: 'Reset your LMSpend account password.',
+  path: '/login/forgot',
+  index: false,
+});
 
 export default async function Forgot({
   searchParams,

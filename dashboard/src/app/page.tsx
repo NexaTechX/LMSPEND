@@ -1,5 +1,64 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { CopyCommand } from '@/components/copy-command';
+import { JsonLd } from '@/components/json-ld';
+import { UpgradeCta } from '@/components/upgrade-cta';
+import { paymentsEnabled } from '@/lib/billing/types';
+import { SITE, pageMetadata } from '@/lib/seo';
+
+export const metadata: Metadata = pageMetadata({
+  title: `${SITE.name} — ${SITE.tagline}`,
+  description: SITE.description,
+  path: '/',
+  absoluteTitle: true,
+  keywords: [
+    'AI coding spend tracker',
+    'Claude Code cost dashboard',
+    'Cursor team spend',
+    'Codex usage cost',
+    'AI developer budget alerts',
+  ],
+});
+
+const FAQ_ITEMS = [
+  {
+    question: 'How is this different from the free usage trackers?',
+    answer:
+      'Free CLIs show one developer their own numbers. LMSpend adds the team layer: caps, alerts before the invoice, per-member and per-project roll-ups, Slack, and finance-ready exports. The individual report stays free.',
+  },
+  {
+    question: 'Is this an LLM proxy or gateway?',
+    answer:
+      'No. We never touch your traffic. The CLI reads usage logs your tools already write to disk, after the fact.',
+  },
+  {
+    question: 'How accurate are the numbers?',
+    answer:
+      'They are estimates from your actual token counts times published model pricing (including cache read/write rates), verified against official Anthropic, OpenAI, and Google pricing pages. Run lmspend --explain to see the exact math per model.',
+  },
+  {
+    question: 'Which tools are supported?',
+    answer:
+      'Log parsing for Claude Code, Codex CLI, Cline, and Roo Code. Cursor via its official Team Admin API. Flat-rate subscriptions via config. Anything else via lmspend import.',
+  },
+  {
+    question: 'Do my teammates each need to pay?',
+    answer:
+      'No. On the Team plan the owner pays; teammates join by invite link with their own free accounts and sync their aggregates. One buyer, up to five seats.',
+  },
+];
+
+function faqJsonLd() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: FAQ_ITEMS.map((item) => ({
+      '@type': 'Question',
+      name: item.question,
+      acceptedAnswer: { '@type': 'Answer', text: item.answer },
+    })),
+  };
+}
 
 function HeroTerminal() {
   return (
@@ -31,8 +90,12 @@ function HeroTerminal() {
 }
 
 export default function Home() {
+  const paidLive = paymentsEnabled();
+
   return (
     <div className="landing">
+      <JsonLd data={faqJsonLd()} />
+      <a href="#main" className="skip-link">Skip to content</a>
       <header className="nav">
         <Link href="/" className="wordmark">lmspend<span className="cursor">_</span></Link>
         <nav className="nav-links" aria-label="Main">
@@ -43,10 +106,25 @@ export default function Home() {
         </nav>
         <div className="nav-actions">
           <Link href="/login" className="btn btn-ghost btn-sm">Sign in</Link>
-          <Link href="/api/checkout?plan=team" className="btn btn-primary btn-sm">Start a team</Link>
+          {paidLive ? (
+            <Link href="/api/checkout?plan=team" className="btn btn-primary btn-sm">Start a team</Link>
+          ) : (
+            <Link href="/login" className="btn btn-primary btn-sm">Get started</Link>
+          )}
         </div>
       </header>
 
+      {!paidLive && (
+        <div className="free-tier-banner" role="status" style={{ margin: '0 auto', maxWidth: 1120, width: 'calc(100% - 48px)' }}>
+          <span className="badge badge-amber">Early access</span>
+          <p>
+            Complimentary Free access is available now — including sync and current-month reporting.
+            Solo and Team plans will open when billing launches.
+          </p>
+        </div>
+      )}
+
+      <main id="main">
       <section className="hero">
         <div>
           <p className="eyebrow">AI coding cost management</p>
@@ -57,12 +135,19 @@ export default function Home() {
             export. Local-first: no proxy, your code never leaves the machine.
           </p>
           <div className="hero-ctas">
-            <Link href="/api/checkout?plan=team" className="btn btn-primary">Start a team — $49/mo</Link>
+            {paidLive ? (
+              <Link href="/api/checkout?plan=team" className="btn btn-primary">Start a team — $49/mo</Link>
+            ) : (
+              <Link href="/login" className="btn btn-primary">Get started — free</Link>
+            )}
             <CopyCommand command="npx lmspend" />
           </div>
           <p className="trust">
-            Free CLI for individuals. Paid dashboard for teams. Estimates audited against official
-            vendor pricing — run <code>lmspend --explain</code> to check the math.
+            {paidLive
+              ? <>Free CLI for individuals. Paid dashboard for teams. Estimates audited against official
+                 vendor pricing — run <code>lmspend --explain</code> to check the math.</>
+              : <>Free CLI and complimentary dashboard sync for the current month during early access.
+                 Estimates audited against official vendor pricing — run <code>lmspend --explain</code> to check the math.</>}
           </p>
         </div>
         <HeroTerminal />
@@ -174,7 +259,11 @@ export default function Home() {
       <section id="pricing">
         <p className="eyebrow">Pricing</p>
         <h2 className="section-title">The report is free. Teams pay for foresight.</h2>
-        <p className="section-lede">Prices in USD everywhere. Card payments handled by Kora.</p>
+        <p className="section-lede">
+          {paidLive
+            ? <>Prices in USD everywhere. Card payments handled by Kora.</>
+            : <>Complimentary Free access is available now. Solo and Team plans open when billing launches.</>}
+        </p>
         <div className="pricing-grid">
           <div className="panel price-card">
             <span className="plan-name">CLI</span>
@@ -200,7 +289,7 @@ export default function Home() {
               <li>Budget &amp; runaway alerts</li>
               <li className="no">Team roll-ups</li>
             </ul>
-            <Link href="/api/checkout?plan=solo" className="btn btn-ghost">Start with Solo</Link>
+            <UpgradeCta href="/api/checkout?plan=solo" className="btn btn-ghost">Start with Solo</UpgradeCta>
           </div>
           <div className="panel price-card price-featured">
             <span className="plan-name">Team</span>
@@ -213,7 +302,7 @@ export default function Home() {
               <li>Per-project attribution</li>
               <li>CSV / expense export</li>
             </ul>
-            <Link href="/api/checkout?plan=team" className="btn btn-primary">Start a team</Link>
+            <UpgradeCta href="/api/checkout?plan=team" className="btn btn-primary">Start a team</UpgradeCta>
           </div>
         </div>
       </section>
@@ -263,13 +352,22 @@ export default function Home() {
       <section>
         <div className="panel" style={{ textAlign: 'center', padding: 48 }}>
           <h2 className="section-title">Find out what your team actually spent last month.</h2>
-          <p className="muted" style={{ marginBottom: 24 }}>Start free on your own machine, or spin up a team workspace in two minutes.</p>
+          <p className="muted" style={{ marginBottom: 24 }}>
+            {paidLive
+              ? <>Start free on your own machine, or spin up a team workspace in two minutes.</>
+              : <>Start free on your own machine. Team billing will be available at launch.</>}
+          </p>
           <div className="hero-ctas" style={{ justifyContent: 'center' }}>
-            <Link href="/api/checkout?plan=team" className="btn btn-primary">Start a team</Link>
+            {paidLive ? (
+              <Link href="/api/checkout?plan=team" className="btn btn-primary">Start a team</Link>
+            ) : (
+              <Link href="/login" className="btn btn-primary">Get started — free</Link>
+            )}
             <CopyCommand command="npx lmspend" />
           </div>
         </div>
       </section>
+      </main>
 
       <footer className="footer">
         <span className="wordmark">lmspend<span className="cursor">_</span></span>

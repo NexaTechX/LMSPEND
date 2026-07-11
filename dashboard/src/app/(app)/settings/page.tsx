@@ -1,11 +1,21 @@
-import Link from 'next/link';
+import type { Metadata } from 'next';
+import { UpgradeCta } from '@/components/upgrade-cta';
 import { resolveAppUrl } from '@/lib/app-url';
 import { currentUserEmail, isDevMode } from '@/lib/auth';
+import { paymentsEnabled } from '@/lib/billing/types';
 import { can, planBadge } from '@/lib/plan';
+import { pageMetadata } from '@/lib/seo';
 import { getStore } from '@/lib/store';
 import { createApiKey, readNewKeyOnce, revokeApiKey, saveBudget, saveSlackWebhook, toggleEmailReports, toggleRealtime } from './actions';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = pageMetadata({
+  title: 'Settings',
+  description: 'LMSpend account settings, API keys, and billing.',
+  path: '/settings',
+  index: false,
+});
 
 export default async function Settings() {
   const email = await currentUserEmail();
@@ -128,7 +138,7 @@ export default async function Settings() {
         <div className="panel locked">
           <div className="lock-head">
             <span className="lock-title">Budget alerts</span>
-            <Link href="/api/checkout?plan=solo" className="btn btn-primary btn-sm">Unlock with Solo — $19/mo</Link>
+            <UpgradeCta href="/api/checkout?plan=solo" className="btn btn-primary btn-sm">Unlock with Solo — $19/mo</UpgradeCta>
           </div>
           <p>
             Set a monthly limit and get emailed before you cross it — plus automatic alerts when a
@@ -188,7 +198,7 @@ export default async function Settings() {
         <div className="panel locked">
           <div className="lock-head">
             <span className="lock-title">Real-time tracking</span>
-            <Link href="/api/checkout?plan=solo" className="btn btn-primary btn-sm">Unlock — from $19/mo</Link>
+            <UpgradeCta href="/api/checkout?plan=solo" className="btn btn-primary btn-sm">Unlock — from $19/mo</UpgradeCta>
           </div>
           <p>
             Keep the dashboard live as you code. <code>lmspend watch</code> pushes updates within
@@ -201,7 +211,7 @@ export default async function Settings() {
         <div className="panel locked">
           <div className="lock-head">
             <span className="lock-title">Monthly email report</span>
-            <Link href="/api/checkout?plan=solo" className="btn btn-ghost btn-sm">Solo — $19/mo</Link>
+            <UpgradeCta href="/api/checkout?plan=solo" className="btn btn-ghost btn-sm">Solo — $19/mo</UpgradeCta>
           </div>
           <p>Your finished month&apos;s numbers in your inbox on the 1st — no need to remember to check.</p>
         </div>
@@ -220,32 +230,37 @@ export default async function Settings() {
               No auto-charge, ever.
             </p>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
-              <Link href={`/api/checkout?plan=${user.plan}`} className="btn btn-ghost btn-sm">
+              <UpgradeCta href={`/api/checkout?plan=${user.plan}`} className="btn btn-ghost btn-sm">
                 Renew now — +31 days
-              </Link>
+              </UpgradeCta>
               {access.plan === 'solo' && (
-                <Link href="/api/checkout?plan=team" className="btn btn-ghost btn-sm">
+                <UpgradeCta href="/api/checkout?plan=team" className="btn btn-ghost btn-sm">
                   Switch to Team — $49/mo
-                </Link>
+                </UpgradeCta>
               )}
             </div>
           </>
         ) : (
           <>
             <p className="muted small" style={{ marginBottom: 12 }}>
-              {user.subscriptionStatus === 'expired' || user.subscriptionStatus === 'cancelled'
-                ? <>Your {user.plan} access lapsed — your data is safe, and renewing unlocks it again instantly.</>
-                : <>You&apos;re on the free plan: sync and the current month are yours forever. History,
-                   budget alerts, and email reports come with a paid plan.</>}
+              {!paymentsEnabled()
+                ? <>You currently have complimentary Free access, including sync and current-month
+                   reporting. Solo and Team plans will be available when billing launches.</>
+                : user.subscriptionStatus === 'expired' || user.subscriptionStatus === 'cancelled'
+                  ? <>Your {user.plan} access lapsed — your data is safe, and renewing unlocks it again instantly.</>
+                  : <>You&apos;re on the free plan: sync and the current month are yours forever. History,
+                     budget alerts, and email reports come with a paid plan.</>}
             </p>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <Link href="/api/checkout?plan=solo" className="btn btn-primary btn-sm">Upgrade to Solo — $19/mo</Link>
-              <Link href="/api/checkout?plan=team" className="btn btn-ghost btn-sm">Upgrade to Team — $49/mo</Link>
+              <UpgradeCta href="/api/checkout?plan=solo" className="btn btn-primary btn-sm">Upgrade to Solo — $19/mo</UpgradeCta>
+              <UpgradeCta href="/api/checkout?plan=team" className="btn btn-ghost btn-sm">Upgrade to Team — $49/mo</UpgradeCta>
             </div>
           </>
         )}
         <p className="muted small" style={{ marginTop: 10 }}>
-          Prices in USD. Card payments processed by Kora. No auto-charge — every renewal is your call.
+          {paymentsEnabled()
+            ? <>Prices in USD. Card payments processed by Kora. No auto-charge — every renewal is your call.</>
+            : <>Prices in USD. Billing for Solo and Team will be available at launch. Free access is available now.</>}
         </p>
       </div>
 

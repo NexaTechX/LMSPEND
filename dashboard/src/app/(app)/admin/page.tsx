@@ -1,13 +1,22 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { isAdminEmail, passcodeRequired, passcodeUnlocked } from '@/lib/admin';
 import { currentUserEmail } from '@/lib/auth';
 import { PLAN_PRICES_USD } from '@/lib/billing/types';
 import { effectivePlan, isPaid, planBadge } from '@/lib/plan';
+import { pageMetadata } from '@/lib/seo';
 import { getStore } from '@/lib/store';
 import { grantPlan, lockAdmin, revokePlan, submitPasscode } from './actions';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = pageMetadata({
+  title: 'Admin',
+  description: 'LMSpend owner console.',
+  path: '/admin',
+  index: false,
+});
 
 const usd = (n: number) => `$${n.toFixed(2)}`;
 

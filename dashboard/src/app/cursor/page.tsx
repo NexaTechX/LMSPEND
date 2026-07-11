@@ -1,6 +1,16 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = pageMetadata({
+  title: 'Connect Cursor',
+  description:
+    'Connect Cursor to LMSpend with the Team Admin API — invoice-exact spend, no estimation. Two-minute setup.',
+  path: '/cursor',
+  keywords: ['Cursor Admin API', 'Cursor spend tracking', 'LMSpend Cursor setup'],
+});
 
 export default function CursorSetup() {
   return (

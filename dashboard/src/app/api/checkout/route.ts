@@ -1,12 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { koraProvider } from '@/lib/billing/kora';
-import type { Plan } from '@/lib/billing/types';
+import { paymentsEnabled, type Plan } from '@/lib/billing/types';
 import { currentUserEmail } from '@/lib/auth';
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const plan = req.nextUrl.searchParams.get('plan');
   if (plan !== 'solo' && plan !== 'team') {
     return NextResponse.json({ error: 'plan must be solo or team' }, { status: 400 });
+  }
+
+  if (!paymentsEnabled()) {
+    return NextResponse.json(
+      {
+        error:
+          'Free-tier beta — paid upgrades are paused until Kora payments go live (set PAYMENTS_ENABLED=true and KORA_SECRET_KEY).',
+      },
+      { status: 503 },
+    );
   }
 
   const email = await currentUserEmail();

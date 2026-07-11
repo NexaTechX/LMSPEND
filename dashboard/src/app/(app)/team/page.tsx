@@ -1,13 +1,22 @@
-import Link from 'next/link';
 import { cookies } from 'next/headers';
+import type { Metadata } from 'next';
 import { CostMath } from '@/components/cost-math';
+import { UpgradeCta } from '@/components/upgrade-cta';
 import { resolveAppUrl } from '@/lib/app-url';
 import { currentUserEmail } from '@/lib/auth';
 import { can } from '@/lib/plan';
+import { pageMetadata } from '@/lib/seo';
 import { getStore, TEAM_SEATS, type SpendBucket } from '@/lib/store';
 import { createInvite, createTeam, removeMember } from './actions';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = pageMetadata({
+  title: 'Team',
+  description: 'LMSpend team workspace and spend roll-up.',
+  path: '/team',
+  index: false,
+});
 
 const usd = (n: number) => `$${n.toFixed(2)}`;
 
@@ -32,9 +41,9 @@ export default async function TeamPage() {
         <div className="panel locked">
           <div className="lock-head">
             <span className="lock-title">Team workspace</span>
-            <Link href="/api/checkout?plan=team" className="btn btn-primary btn-sm">
+            <UpgradeCta href="/api/checkout?plan=team" className="btn btn-primary btn-sm">
               Unlock with Team — $49/mo
-            </Link>
+            </UpgradeCta>
           </div>
           <p>
             One roll-up for every seat: who&apos;s spending what, across every AI coding tool.

@@ -47,7 +47,22 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-::selection { background: var(--amber-dim); color: var(--amber-bright); }
+/* Skip link — keyboard / screen-reader entry to main content */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: 10px 16px;
+  background: var(--amber);
+  color: #1a1204;
+  font-weight: 600;
+  border-radius: var(--r-sm);
+}
+.skip-link:focus {
+  left: 12px;
+  top: 12px;
+}
 
 a { color: inherit; text-decoration: none; }
 a:hover { color: var(--amber-bright); }
@@ -103,6 +118,12 @@ code, kbd, .mono { font-family: var(--mono); }
 .btn-danger:hover { border-color: var(--red); }
 .btn-block { width: 100%; }
 .btn-sm { padding: 5px 12px; font-size: 13px; }
+.btn:disabled,
+.btn[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
 
 /* -------------------------------- Forms ------------------------------- */
 
@@ -147,6 +168,26 @@ code, kbd, .mono { font-family: var(--mono); }
 .notice-ok { border-color: rgba(76, 195, 138, 0.4); color: var(--green); }
 .notice-err { border-color: rgba(241, 106, 106, 0.4); color: var(--red); }
 .notice-warn { border-color: rgba(232, 180, 90, 0.4); color: var(--amber-bright); }
+
+.free-tier-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 0 20px;
+  padding: 12px 14px;
+  border-radius: var(--r-sm);
+  border: 1px solid rgba(232, 180, 90, 0.35);
+  background: var(--amber-dim);
+}
+.free-tier-banner p {
+  margin: 0;
+  flex: 1;
+  min-width: 200px;
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.5;
+}
 
 .badge {
   display: inline-block;

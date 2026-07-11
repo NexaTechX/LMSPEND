@@ -1,3 +1,4 @@
+import { paymentsEnabled } from './billing/types';
 import type { UserRecord } from './store';
 
 /**
@@ -12,6 +13,8 @@ function paidWindowOpen(u: UserRecord): boolean {
 }
 
 export function effectivePlan(u: UserRecord): EffectivePlan {
+  // Free-tier beta: paid plans stay locked until Kora payments go live.
+  if (!paymentsEnabled()) return 'free';
   // past_due keeps access while the paid window is still open (grace, no cliff)
   if ((u.subscriptionStatus === 'active' || u.subscriptionStatus === 'past_due') && paidWindowOpen(u)) {
     return u.plan;
@@ -40,6 +43,9 @@ export function can(u: UserRecord) {
 export function planBadge(u: UserRecord): { label: string; className: string } {
   const plan = effectivePlan(u);
   if (plan === 'free') {
+    if (!paymentsEnabled()) {
+      return { label: 'free · early access', className: 'badge-amber' };
+    }
     if (u.subscriptionStatus === 'expired' || u.subscriptionStatus === 'cancelled') {
       return { label: `free · ${u.plan} lapsed`, className: 'badge-warn' };
     }

@@ -1,8 +1,18 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { isDevMode } from '@/lib/auth';
+import { paymentsEnabled } from '@/lib/billing/types';
+import { pageMetadata } from '@/lib/seo';
 import { signIn, signUp } from './actions';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = pageMetadata({
+  title: 'Sign in',
+  description: 'Sign in or create a free LMSpend account to sync your AI coding spend.',
+  path: '/login',
+  index: false,
+});
 
 const ERRORS: Record<string, string> = {
   email: 'That email doesn’t look right — try again.',
@@ -96,6 +106,7 @@ export default async function Login({
 
         <p className="muted small">
           Creating an account is free. Sync stays opt-in either way.
+          {!paymentsEnabled() && <> Solo and Team plans will be available when billing launches.</>}
         </p>
       </div>
     </main>

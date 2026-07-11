@@ -1,9 +1,18 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { isDevMode } from '@/lib/auth';
+import { pageMetadata } from '@/lib/seo';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = pageMetadata({
+  title: 'Update password',
+  description: 'Choose a new password for your LMSpend account.',
+  path: '/auth/update-password',
+  index: false,
+});
 
 /** Reached with a recovery session from the reset email — middleware guards it. */
 async function updatePassword(formData: FormData): Promise<void> {

@@ -1,10 +1,18 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
+import { FreeTierBanner } from '@/components/free-tier-banner';
 import { isAdminEmail } from '@/lib/admin';
 import { currentUserEmail, isDevMode } from '@/lib/auth';
 import { planBadge } from '@/lib/plan';
+import { noIndexRobots } from '@/lib/seo';
 import { getStore } from '@/lib/store';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  robots: noIndexRobots,
+  title: 'Dashboard',
+};
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const email = await currentUserEmail();
@@ -40,7 +48,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           )}
         </div>
       </aside>
-      <div className="content">{children}</div>
+      <div className="content">
+        <FreeTierBanner />
+        {children}
+      </div>
     </div>
   );
 }

@@ -1,12 +1,22 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { CostMath } from '@/components/cost-math';
 import { LiveRefresh } from '@/components/live-refresh';
+import { UpgradeCta } from '@/components/upgrade-cta';
 import { resolveAppUrl } from '@/lib/app-url';
 import { currentUserEmail } from '@/lib/auth';
 import { can } from '@/lib/plan';
+import { pageMetadata } from '@/lib/seo';
 import { getStore, topPercentile, type SpendBucket } from '@/lib/store';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = pageMetadata({
+  title: 'Overview',
+  description: 'Your AI coding spend overview.',
+  path: '/dashboard',
+  index: false,
+});
 
 function usd(n: number): string {
   return `$${n.toFixed(2)}`;
@@ -255,9 +265,9 @@ export default async function Dashboard() {
                 ? `${lockedMonths} earlier month${lockedMonths > 1 ? 's' : ''} stored and waiting`
                 : 'History & trends'}
             </span>
-            <Link href="/api/checkout?plan=solo" className="btn btn-primary btn-sm">
+            <UpgradeCta href="/api/checkout?plan=solo" className="btn btn-primary btn-sm">
               Unlock with Solo — $19/mo
-            </Link>
+            </UpgradeCta>
           </div>
           <p>
             Every sync is saved — month-over-month trends, budget alerts, and your monthly email
@@ -270,7 +280,7 @@ export default async function Dashboard() {
         <div className="panel locked">
           <div className="lock-head">
             <span className="lock-title">Budget alerts</span>
-            <Link href="/api/checkout?plan=solo" className="btn btn-ghost btn-sm">Solo — $19/mo</Link>
+            <UpgradeCta href="/api/checkout?plan=solo" className="btn btn-ghost btn-sm">Solo — $19/mo</UpgradeCta>
           </div>
           <p>
             &quot;Email me before the month passes $300&quot; — plus an automatic alert when any single
