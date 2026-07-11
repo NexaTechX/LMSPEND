@@ -73,9 +73,10 @@ export const metadata: Metadata = {
     images: [
       {
         url: ogImageUrl(),
+        secureUrl: ogImageUrl(),
         width: SITE.ogImageWidth,
         height: SITE.ogImageHeight,
-        type: 'image/png',
+        type: SITE.ogImageType,
         alt: SITE.ogImageAlt,
       },
     ],

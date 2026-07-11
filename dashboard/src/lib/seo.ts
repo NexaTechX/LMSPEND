@@ -28,10 +28,12 @@ export const SITE = {
   ],
   /** Set NEXT_PUBLIC_TWITTER_HANDLE (e.g. @lmspend) when the account exists. */
   twitter: process.env.NEXT_PUBLIC_TWITTER_HANDLE?.trim() || undefined,
-  ogImagePath: '/og-image.png',
+  /** Cache-bust so X/IG refetch after deploy. Prefer JPEG — more reliable for crawlers. */
+  ogImagePath: '/og-image.jpg',
   ogImageAlt: 'LMSpend — know what you spend on AI coding tools',
   ogImageWidth: 1200,
   ogImageHeight: 630,
+  ogImageType: 'image/jpeg',
   themeColor: '#0a0c10',
 } as const;
 
@@ -118,9 +120,10 @@ export function pageMetadata({
       images: [
         {
           url: img,
+          secureUrl: img.startsWith('https') ? img : undefined,
           width: SITE.ogImageWidth,
           height: SITE.ogImageHeight,
-          type: 'image/png',
+          type: SITE.ogImageType,
           alt,
         },
       ],
