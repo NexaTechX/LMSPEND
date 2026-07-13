@@ -5,11 +5,12 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "lmspend": "./dist/index.js"
+    "lmspend": "dist/index.js"
   },
   "files": [
     "dist",
-    "pricing.json"
+    "pricing.json",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=20"
@@ -17,7 +18,17 @@
   "scripts": {
     "dev": "tsx src/index.ts",
     "build": "tsc",
+    "prepublishOnly": "npm run build && npm test",
     "test": "vitest run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NexaTechX/LMSPEND.git",
+    "directory": "cli"
+  },
+  "homepage": "https://lmspend.vercel.app",
+  "bugs": {
+    "url": "https://github.com/NexaTechX/LMSPEND/issues"
   },
   "keywords": [
     "ai",

@@ -331,6 +331,14 @@ td.num, th.num { text-align: right; }
 .nav-links { display: flex; align-items: center; gap: 24px; font-size: 14px; color: var(--muted); }
 .nav-links a:hover { color: var(--text); }
 .nav-actions { display: flex; align-items: center; gap: 12px; }
+.nav-github {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  transition: color 0.15s ease;
+}
+.nav-github:hover { color: var(--text); }
 
 .landing section { padding: 88px 32px; max-width: 1080px; margin: 0 auto; }
 

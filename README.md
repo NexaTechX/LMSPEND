@@ -1,32 +1,93 @@
 # LMSpend
 
-One dashboard for everything you spend on AI coding tools — Claude Code, Cursor, Codex — with a free, local-first CLI that turns your monthly AI bill into a shareable report.
+[![GitHub](https://img.shields.io/badge/GitHub-NexaTechX%2FLMSPEND-181717?logo=github)](https://github.com/NexaTechX/LMSPEND)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-## Repo layout
+**Open-source** cost visibility for AI coding tools — Claude Code, Cursor, Codex, and more — with a free, local-first CLI and an optional hosted dashboard.
 
-| Path | What |
-|---|---|
-| [docs/PRD.md](docs/PRD.md) | Product requirements — problem, personas, scope, pricing, metrics, milestones |
-| [docs/CLI-SPEC.md](docs/CLI-SPEC.md) | v1 CLI spec — commands, adapters, cost math, success criteria |
-| [docs/landing-page-copy.md](docs/landing-page-copy.md) | Full landing page copy, ready to drop into a page |
-| [docs/launch-plan.md](docs/launch-plan.md) | Zero-ad-spend launch playbook (X, HN, Indie Hackers, PH) |
-| [docs/payments.md](docs/payments.md) | Billing decision: USD pricing via Merchant of Record (Nigeria-compatible, no Stripe) |
-| [cli/](cli/) | The CLI — TypeScript, zero runtime deps; adapters for Claude Code, Codex, Cline, Roo Code + universal `import`; ROI mode, share cards, opt-in sync |
-| [dashboard/](dashboard/) | Next.js paid dashboard — sync API, spend UI, Kora billing, share links, alert emails (see its README) |
+- **CLI (free):** read usage from logs already on your machine, estimate spend, print shareable cards
+- **Dashboard (hosted SaaS):** sync history, budgets, alerts, team views, share links
 
-## Run the CLI
+Repo: [github.com/NexaTechX/LMSPEND](https://github.com/NexaTechX/LMSPEND) · App: [lmspend.vercel.app](https://lmspend.vercel.app)
+
+## Why open source
+
+AI spend tools that proxy your traffic or demand a cloud account first are a non-starter for many teams. LMSpend is local-first: adapters read vendor logs on disk; your code never leaves the machine unless you opt in to sync.
+
+Opening the source means you can audit the cost math, add adapters, and self-host if you want. We monetize the hosted dashboard (convenience, history, alerts, teams) — not lock-in on the CLI.
+
+## Quick start (CLI)
+
+```bash
+npx lmspend              # current-month report
+npx lmspend share        # shareable card
+npx lmspend tools        # which adapters were detected
+```
+
+Or from this repo:
 
 ```bash
 cd cli
 npm install
 npm run dev            # = lmspend report for the current month
-npm run dev share      # shareable card
-npm run dev tools      # adapter detection status
+npm run dev share
+npm run dev tools
 ```
 
-## Business snapshot
+## Repo layout
 
-- Free CLI = viral top-of-funnel (shareable "my AI coding bill" cards)
-- Paid dashboard = revenue: Solo $19/mo, Team $49/mo (USD, cards via Kora — individual-business friendly for Nigeria) — history, budgets, alerts, share links
-- Target: $5K MRR by month 6, $0 paid acquisition
-- Before launch: pick final name (npm + domain + X handle), verify Codex log format, verify pricing.json against vendor pages
+| Path | What |
+|---|---|
+| [cli/](cli/) | Free CLI — TypeScript, zero runtime deps; adapters for Claude Code, Codex, Cline, Roo Code + universal `import`; ROI mode, share cards, opt-in sync |
+| [dashboard/](dashboard/) | Next.js hosted dashboard — sync API, spend UI, billing, share links, alert emails |
+| [docs/PRD.md](docs/PRD.md) | Product requirements |
+| [docs/CLI-SPEC.md](docs/CLI-SPEC.md) | CLI commands, adapters, cost math |
+| [docs/payments.md](docs/payments.md) | Billing notes |
+
+## Contributing
+
+Issues and PRs are welcome — especially new tool adapters, pricing updates, and CLI UX.
+
+1. Fork [NexaTechX/LMSPEND](https://github.com/NexaTechX/LMSPEND)
+2. Create a branch (`git checkout -b feat/my-adapter`)
+3. Make a focused change; match existing style
+4. Open a PR with a short “why” and how you tested it
+
+For larger changes, open an issue first so we can align on scope.
+
+## Self-hosting vs hosted
+
+| | CLI | Self-hosted dashboard | Hosted (lmspend.vercel.app) |
+|---|---|---|---|
+| Cost estimates from local logs | ✓ | ✓ | ✓ (via sync) |
+| History, budgets, alerts, teams | — | if you run it | ✓ |
+| Billing / support | — | you own ops | us |
+
+The CLI stays free. Paid plans fund the hosted product.
+
+## License
+
+**Recommended: [MIT](https://opensource.org/licenses/MIT)** — already declared on the CLI (`cli/package.json`).
+
+MIT fits an open-source CLI + SaaS dashboard well:
+
+- Anyone can use, modify, and redistribute (including commercial use)
+- You keep selling the hosted service, support, and team features
+- Contributors and enterprises recognize it; low friction to adopt and fork
+- Simple to comply with (keep the copyright notice)
+
+**When to pick something else**
+
+| License | Use if… |
+|---|---|
+| **MIT** (recommended) | You want max adoption and a clear OSS story; compete on product, not license friction |
+| **Apache-2.0** | You want an explicit patent grant on top of MIT-like terms |
+| **AGPL-3.0** | You want network/SaaS copycats to share their modifications — stronger copyleft, fewer enterprise clones, but harder contributions |
+
+Add a root `LICENSE` file with the MIT text (and keep `cli/package.json` `"license": "MIT"`) when you’re ready. Until then, treat the project as MIT-intended.
+
+## Business model (short)
+
+- Free open-source CLI = top of funnel and trust
+- Paid dashboard = Solo / Team plans (history, budgets, alerts, share links)
+- Estimates use API list prices; LMSpend is not affiliated with Anthropic, OpenAI, Google, or Cursor
