@@ -1,10 +1,12 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { currentUserEmail } from './auth';
+import { supabaseConfigured } from './supabase/config';
+import { getStore } from './store';
 
 /**
  * Super-admin gate — two factors:
- *  1. email is in LMSPEND_ADMIN_EMAILS (comma-separated)
+ *  1. users.is_admin = true in Postgres (set via SQL / owner tooling)
  *  2. IF LMSPEND_ADMIN_PASSCODE is set, a matching passcode cookie is present
  *
  * The passcode is a second lock on the owner console: even if someone reaches
@@ -14,17 +16,12 @@ import { currentUserEmail } from './auth';
 
 export const ADMIN_COOKIE = 'lmspend_admin';
 
-export function adminEmails(): string[] {
-  return (process.env.LMSPEND_ADMIN_EMAILS ?? '')
-    .split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
-}
-
-export function isAdminEmail(email: string | null): boolean {
+export async function isAdminEmail(email: string | null): Promise<boolean> {
   if (!email) return false;
-  const list = adminEmails();
-  // Dev convenience: no list configured AND Supabase off → allow the dev user.
-  if (list.length === 0 && !process.env.NEXT_PUBLIC_SUPABASE_URL) return true;
-  return list.includes(email.toLowerCase());
+  // Dev convenience: no Supabase → memory store treats everyone as admin.
+  if (!supabaseConfigured()) return true;
+  const user = await getStore().ensureUser(email);
+  return user.isAdmin;
 }
 
 function passcode(): string | null {
@@ -66,7 +63,7 @@ export async function passcodeUnlocked(): Promise<boolean> {
 /** Full server-side guard for admin actions. Returns email or null. */
 export async function requireAdmin(): Promise<string | null> {
   const email = await currentUserEmail();
-  if (!isAdminEmail(email)) return null;
+  if (!(await isAdminEmail(email))) return null;
   if (!(await passcodeUnlocked())) return null;
   return email;
 }

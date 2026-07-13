@@ -39,6 +39,7 @@ export interface UserRecord {
   paidUntil: string | null;
   emailReports: boolean;
   realtimeEnabled: boolean;
+  isAdmin: boolean;
 }
 
 export interface ApiKeyInfo {
@@ -165,8 +166,8 @@ function memUser(email: string): MemUser {
   if (!u) {
     u = {
       email, plan: 'solo', subscriptionStatus: 'none', paidUntil: null,
-      emailReports: true, realtimeEnabled: false, months: new Map(), keys: new Map(), budget: null,
-      slackWebhook: null,
+      emailReports: true, realtimeEnabled: false, isAdmin: true,
+      months: new Map(), keys: new Map(), budget: null, slackWebhook: null,
     };
     mem.set(email, u);
   }
@@ -177,6 +178,7 @@ function pub(u: MemUser): UserRecord {
   return {
     email: u.email, plan: u.plan, subscriptionStatus: u.subscriptionStatus,
     paidUntil: u.paidUntil, emailReports: u.emailReports, realtimeEnabled: u.realtimeEnabled,
+    isAdmin: u.isAdmin,
   };
 }
 
@@ -324,7 +326,8 @@ interface DbUserRow {
   sub_status: SubscriptionStatus;
   paid_until: string | null;
   email_reports: boolean;
-  realtime_enabled: boolean;
+  realtime_enabled?: boolean;
+  is_admin?: boolean;
 }
 
 function fromRow(r: DbUserRow): UserRecord {
@@ -332,6 +335,7 @@ function fromRow(r: DbUserRow): UserRecord {
     email: r.email, plan: r.plan, subscriptionStatus: r.sub_status,
     paidUntil: r.paid_until, emailReports: r.email_reports,
     realtimeEnabled: r.realtime_enabled ?? false,
+    isAdmin: r.is_admin ?? false,
   };
 }
 
@@ -345,17 +349,26 @@ async function userId(email: string): Promise<string> {
 
 // Newer columns may not exist yet on a database that hasn't run the latest
 // migration. Select them, but fall back gracefully so the app keeps working.
-const USER_COLS = 'email, plan, sub_status, paid_until, email_reports, realtime_enabled';
+const USER_COLS = 'email, plan, sub_status, paid_until, email_reports, realtime_enabled, is_admin';
+const USER_COLS_NO_ADMIN = 'email, plan, sub_status, paid_until, email_reports, realtime_enabled';
 const USER_COLS_LEGACY = 'email, plan, sub_status, paid_until, email_reports';
 
 function isMissingColumn(err: { message?: string; code?: string } | null): boolean {
-  return !!err && (/realtime_enabled/.test(err.message ?? '') || err.code === '42703' || err.code === 'PGRST204');
+  const msg = err?.message ?? '';
+  return !!err && (
+    /realtime_enabled|is_admin/.test(msg) ||
+    err.code === '42703' ||
+    err.code === 'PGRST204'
+  );
 }
 
 const supabaseStore: Store = {
   async ensureUser(email) {
     const db = createSupabaseAdminClient();
     let res = await db.from('users').upsert({ email }, { onConflict: 'email' }).select(USER_COLS).single();
+    if (res.error && isMissingColumn(res.error)) {
+      res = await db.from('users').upsert({ email }, { onConflict: 'email' }).select(USER_COLS_NO_ADMIN).single();
+    }
     if (res.error && isMissingColumn(res.error)) {
       res = await db.from('users').upsert({ email }, { onConflict: 'email' }).select(USER_COLS_LEGACY).single();
     }
@@ -366,6 +379,9 @@ const supabaseStore: Store = {
   async listUsers() {
     const db = createSupabaseAdminClient();
     let res = await db.from('users').select(USER_COLS);
+    if (res.error && isMissingColumn(res.error)) {
+      res = await db.from('users').select(USER_COLS_NO_ADMIN);
+    }
     if (res.error && isMissingColumn(res.error)) {
       res = await db.from('users').select(USER_COLS_LEGACY);
     }

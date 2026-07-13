@@ -11,7 +11,7 @@ import { getStore } from '@/lib/store';
 /** Unlock the admin console with the passcode (second factor). */
 export async function submitPasscode(formData: FormData): Promise<void> {
   const email = await currentUserEmail();
-  if (!isAdminEmail(email)) redirect('/dashboard');
+  if (!(await isAdminEmail(email))) redirect('/dashboard');
 
   const input = String(formData.get('passcode') ?? '');
   if (!verifyPasscode(input)) redirect('/admin?bad=1');

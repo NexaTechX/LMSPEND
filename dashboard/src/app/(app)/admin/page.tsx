@@ -57,7 +57,7 @@ export default async function AdminPage({
   searchParams: Promise<{ bad?: string }>;
 }) {
   const email = await currentUserEmail();
-  if (!isAdminEmail(email)) notFound(); // don't reveal the route exists to non-admins
+  if (!(await isAdminEmail(email))) notFound(); // don't reveal the route exists to non-admins
 
   if (passcodeRequired() && !(await passcodeUnlocked())) {
     const { bad } = await searchParams;

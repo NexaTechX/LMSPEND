@@ -13,6 +13,7 @@ create table if not exists users (
   paid_until    timestamptz,                           -- access window (31 days per Kora charge)
   email_reports boolean not null default true,         -- monthly report emails
   realtime_enabled boolean not null default false,     -- live watch daemon opt-in (paid)
+  is_admin      boolean not null default false,        -- owner console (/admin)
   external_customer_id text,
   created_at    timestamptz not null default now()
 );
@@ -111,4 +112,5 @@ alter table team_invites enable row level security;
 -- alter table monthly_spend add column if not exists roi_multiple numeric(8,2);
 -- alter table budgets alter column monthly_limit_usd drop not null;
 -- alter table users add column if not exists realtime_enabled boolean not null default false;
+-- alter table users add column if not exists is_admin boolean not null default false;
 -- (plus the teams / team_members / team_invites blocks above if they don't exist yet)

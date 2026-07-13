@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const email = await currentUserEmail();
   const user = email ? await getStore().ensureUser(email) : null;
-  const admin = isAdminEmail(email);
+  const admin = await isAdminEmail(email);
 
   return (
     <div className="shell">
