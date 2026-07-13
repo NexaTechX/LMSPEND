@@ -6,19 +6,29 @@ import { getStore } from './store';
 
 /**
  * Super-admin gate — two factors:
- *  1. users.is_admin = true in Postgres (set via SQL / owner tooling)
+ *  1. users.is_admin = true in Postgres
  *  2. IF LMSPEND_ADMIN_PASSCODE is set, a matching passcode cookie is present
  *
- * The passcode is a second lock on the owner console: even if someone reaches
- * the admin inbox, they still need the passcode. The cookie stores an HMAC of a
- * fixed string keyed by the passcode — never the passcode itself.
+ * Unlock cookies are bound to the admin email (HMAC includes email). Failed
+ * unlocks are rate-limited in-memory; after MAX_FAILS the email is locked out
+ * for LOCKOUT_MS.
  */
 
 export const ADMIN_COOKIE = 'lmspend_admin';
 
+const MAX_FAILS = 5;
+const LOCKOUT_MS = 15 * 60 * 1000;
+const FAIL_WINDOW_MS = 15 * 60 * 1000;
+
+const g = globalThis as unknown as {
+  __lmspendAdminFails?: Map<string, { count: number; firstAt: number; lockedUntil: number }>;
+};
+const fails: Map<string, { count: number; firstAt: number; lockedUntil: number }> =
+  g.__lmspendAdminFails ?? new Map();
+g.__lmspendAdminFails = fails;
+
 export async function isAdminEmail(email: string | null): Promise<boolean> {
   if (!email) return false;
-  // Dev convenience: no Supabase → memory store treats everyone as admin.
   if (!supabaseConfigured()) return true;
   const user = await getStore().ensureUser(email);
   return user.isAdmin;
@@ -33,11 +43,11 @@ export function passcodeRequired(): boolean {
   return passcode() !== null;
 }
 
-/** The value we store in the cookie: HMAC(fixed-string, passcode). */
-export function passcodeToken(): string {
+/** Cookie value: HMAC(passcode, email + gate) — session-bound to the admin email. */
+export function passcodeToken(email: string): string {
   const p = passcode();
   if (!p) return '';
-  return createHmac('sha256', p).update('lmspend-admin-gate').digest('hex');
+  return createHmac('sha256', p).update(`${email.toLowerCase()}:lmspend-admin-gate`).digest('hex');
 }
 
 function safeEqual(a: string, b: string): boolean {
@@ -46,18 +56,72 @@ function safeEqual(a: string, b: string): boolean {
   return ba.length === bb.length && timingSafeEqual(ba, bb);
 }
 
-/** True if the user typed the correct passcode. */
-export function verifyPasscode(input: string): boolean {
-  const p = passcode();
-  return p !== null && safeEqual(input, p);
+export function isPasscodeLockedOut(email: string): boolean {
+  const row = fails.get(email.toLowerCase());
+  if (!row) return false;
+  if (row.lockedUntil > Date.now()) return true;
+  if (Date.now() - row.firstAt > FAIL_WINDOW_MS) {
+    fails.delete(email.toLowerCase());
+    return false;
+  }
+  return false;
 }
 
-/** True if the current request carries a valid passcode cookie (or none needed). */
+export function recordPasscodeFailure(email: string): { locked: boolean; remaining: number } {
+  const key = email.toLowerCase();
+  const now = Date.now();
+  let row = fails.get(key);
+  if (!row || now - row.firstAt > FAIL_WINDOW_MS) {
+    row = { count: 0, firstAt: now, lockedUntil: 0 };
+  }
+  row.count += 1;
+  if (row.count >= MAX_FAILS) {
+    row.lockedUntil = now + LOCKOUT_MS;
+  }
+  fails.set(key, row);
+  return {
+    locked: row.lockedUntil > now,
+    remaining: Math.max(0, MAX_FAILS - row.count),
+  };
+}
+
+export function clearPasscodeFailures(email: string): void {
+  fails.delete(email.toLowerCase());
+}
+
+export function verifyPasscode(input: string): boolean {
+  const p = passcode();
+  if (!p) return false;
+  try {
+    return safeEqual(input, p);
+  } catch {
+    return false;
+  }
+}
+
 export async function passcodeUnlocked(): Promise<boolean> {
   if (!passcodeRequired()) return true;
+  const email = await currentUserEmail();
+  if (!email) return false;
   const c = await cookies();
   const val = c.get(ADMIN_COOKIE)?.value;
-  return val ? safeEqual(val, passcodeToken()) : false;
+  return val ? safeEqual(val, passcodeToken(email)) : false;
+}
+
+export function adminCookieOptions(): {
+  httpOnly: boolean;
+  sameSite: 'lax';
+  path: string;
+  maxAge: number;
+  secure: boolean;
+} {
+  return {
+    httpOnly: true,
+    sameSite: 'lax',
+    path: '/admin',
+    maxAge: 60 * 60 * 8,
+    secure: process.env.NODE_ENV === 'production',
+  };
 }
 
 /** Full server-side guard for admin actions. Returns email or null. */

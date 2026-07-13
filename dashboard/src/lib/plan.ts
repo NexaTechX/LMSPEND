@@ -13,17 +13,26 @@ function paidWindowOpen(u: UserRecord): boolean {
 }
 
 export function effectivePlan(u: UserRecord): EffectivePlan {
-  // Free-tier beta: paid plans stay locked until Kora payments go live.
+  const windowOk =
+    (u.subscriptionStatus === 'active' || u.subscriptionStatus === 'past_due') &&
+    paidWindowOpen(u);
+  if (!windowOk) return 'free';
+
+  // Admin comps unlock access even when public checkout is disabled.
+  if (u.accessSource === 'comp') return u.plan;
+
+  // Free-tier beta: paid checkout stays locked until Kora goes live.
   if (!paymentsEnabled()) return 'free';
-  // past_due keeps access while the paid window is still open (grace, no cliff)
-  if ((u.subscriptionStatus === 'active' || u.subscriptionStatus === 'past_due') && paidWindowOpen(u)) {
-    return u.plan;
-  }
-  return 'free';
+
+  return u.plan;
 }
 
 export function isPaid(u: UserRecord): boolean {
   return effectivePlan(u) !== 'free';
+}
+
+export function isComped(u: UserRecord): boolean {
+  return isPaid(u) && u.accessSource === 'comp';
 }
 
 /** What features each tier unlocks — gate against THIS, never against u.plan. */
@@ -43,13 +52,16 @@ export function can(u: UserRecord) {
 export function planBadge(u: UserRecord): { label: string; className: string } {
   const plan = effectivePlan(u);
   if (plan === 'free') {
-    if (!paymentsEnabled()) {
+    if (!paymentsEnabled() && u.accessSource !== 'comp') {
       return { label: 'free · early access', className: 'badge-amber' };
     }
     if (u.subscriptionStatus === 'expired' || u.subscriptionStatus === 'cancelled') {
       return { label: `free · ${u.plan} lapsed`, className: 'badge-warn' };
     }
     return { label: 'free', className: 'badge-free' };
+  }
+  if (u.accessSource === 'comp') {
+    return { label: `${plan} · comp`, className: 'badge-amber' };
   }
   if (u.subscriptionStatus === 'past_due') {
     return { label: `${plan} · payment issue`, className: 'badge-warn' };

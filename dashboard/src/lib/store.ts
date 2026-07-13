@@ -32,6 +32,8 @@ export interface MonthlySpend {
   syncedAt: string;
 }
 
+export type AccessSource = 'none' | 'payment' | 'comp';
+
 export interface UserRecord {
   email: string;
   plan: Plan;
@@ -40,6 +42,10 @@ export interface UserRecord {
   emailReports: boolean;
   realtimeEnabled: boolean;
   isAdmin: boolean;
+  accessSource: AccessSource;
+  adminNotes: string | null;
+  externalCustomerId: string | null;
+  createdAt: string | null;
 }
 
 export interface ApiKeyInfo {
@@ -81,9 +87,16 @@ export interface Store {
   listUsers(): Promise<UserRecord[]>;
   upsertSpend(email: string, spend: MonthlySpend): Promise<void>;
   getSpend(email: string): Promise<MonthlySpend[]>;
-  setSubscription(email: string, plan: Plan, status: SubscriptionStatus, paidUntil?: string | null): Promise<void>;
+  setSubscription(
+    email: string,
+    plan: Plan,
+    status: SubscriptionStatus,
+    paidUntil?: string | null,
+    accessSource?: AccessSource,
+  ): Promise<void>;
   setEmailReports(email: string, on: boolean): Promise<void>;
   setRealtimeEnabled(email: string, on: boolean): Promise<void>;
+  setExternalCustomerId(email: string, customerId: string | null): Promise<void>;
 
   emailForApiKey(rawKey: string): Promise<string | null>;
   createApiKey(email: string, label: string): Promise<string>; // returns the raw key — shown once
@@ -110,8 +123,8 @@ export interface Store {
 
   addToWaitlist(email: string, tool: string): Promise<void>;
 
-  // Admin (owner console)
-  listWaitlist(): Promise<Array<{ email: string; tool: string; createdAt: string }>>;
+  // Admin (owner console) — thin helpers; richer ops live in admin-ops.ts
+  listWaitlist(): Promise<Array<{ email: string; tool: string; createdAt: string; status: string }>>;
   countTeams(): Promise<number>;
 }
 
@@ -146,13 +159,13 @@ interface MemTeam {
 const g = globalThis as unknown as {
   __lmspendMem?: Map<string, MemUser>;
   __lmspendShares?: Map<string, ShareCardData>;
-  __lmspendWaitlist?: Map<string, string>;
+  __lmspendWaitlist?: Map<string, { createdAt: string; status: string }>;
   __lmspendTeams?: Map<string, MemTeam>;
   __lmspendInvites?: Map<string, string>; // token → teamId
 };
 const mem: Map<string, MemUser> = g.__lmspendMem ?? new Map();
 const memShares: Map<string, ShareCardData> = g.__lmspendShares ?? new Map();
-const memWaitlist: Map<string, string> = g.__lmspendWaitlist ?? new Map();
+const memWaitlist: Map<string, { createdAt: string; status: string }> = g.__lmspendWaitlist ?? new Map();
 const memTeams: Map<string, MemTeam> = g.__lmspendTeams ?? new Map();
 const memInvites: Map<string, string> = g.__lmspendInvites ?? new Map();
 g.__lmspendMem = mem;
@@ -167,6 +180,8 @@ function memUser(email: string): MemUser {
     u = {
       email, plan: 'solo', subscriptionStatus: 'none', paidUntil: null,
       emailReports: true, realtimeEnabled: false, isAdmin: true,
+      accessSource: 'none', adminNotes: null, externalCustomerId: null,
+      createdAt: new Date().toISOString(),
       months: new Map(), keys: new Map(), budget: null, slackWebhook: null,
     };
     mem.set(email, u);
@@ -178,7 +193,8 @@ function pub(u: MemUser): UserRecord {
   return {
     email: u.email, plan: u.plan, subscriptionStatus: u.subscriptionStatus,
     paidUntil: u.paidUntil, emailReports: u.emailReports, realtimeEnabled: u.realtimeEnabled,
-    isAdmin: u.isAdmin,
+    isAdmin: u.isAdmin, accessSource: u.accessSource, adminNotes: u.adminNotes,
+    externalCustomerId: u.externalCustomerId, createdAt: u.createdAt,
   };
 }
 
@@ -193,11 +209,16 @@ const memoryStore: Store = {
     return u ? [...u.months.values()].sort((a, b) => b.month.localeCompare(a.month)) : [];
   },
 
-  async setSubscription(email, plan, status, paidUntil) {
+  async setSubscription(email, plan, status, paidUntil, accessSource) {
     const u = memUser(email);
     u.plan = plan;
     u.subscriptionStatus = status;
     if (paidUntil !== undefined) u.paidUntil = paidUntil;
+    if (accessSource !== undefined) u.accessSource = accessSource;
+  },
+
+  async setExternalCustomerId(email, customerId) {
+    memUser(email).externalCustomerId = customerId;
   },
 
   async setEmailReports(email, on) { memUser(email).emailReports = on; },
@@ -304,19 +325,29 @@ const memoryStore: Store = {
   },
   async getShare(slug) { return memShares.get(slug) ?? null; },
 
-  async addToWaitlist(email, tool) { memWaitlist.set(`${tool}:${email}`, new Date().toISOString()); },
+  async addToWaitlist(email, tool) {
+    const key = `${tool}:${email}`;
+    if (!memWaitlist.has(key)) {
+      memWaitlist.set(key, { createdAt: new Date().toISOString(), status: 'new' });
+    }
+  },
 
   async listWaitlist() {
     return [...memWaitlist.entries()]
-      .map(([k, createdAt]) => {
+      .map(([k, v]) => {
         const [tool, ...rest] = k.split(':');
-        return { email: rest.join(':'), tool, createdAt };
+        return { email: rest.join(':'), tool, createdAt: v.createdAt, status: v.status };
       })
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
 
   async countTeams() { return memTeams.size; },
 };
+
+/** Exposed for admin-ops memory backend (same process maps). */
+export function _memoryInternals() {
+  return { mem, memWaitlist, memTeams, memShares };
+}
 
 /* ------------------------------ SupabaseStore ----------------------------- */
 
@@ -328,6 +359,10 @@ interface DbUserRow {
   email_reports: boolean;
   realtime_enabled?: boolean;
   is_admin?: boolean;
+  access_source?: AccessSource;
+  admin_notes?: string | null;
+  external_customer_id?: string | null;
+  created_at?: string | null;
 }
 
 function fromRow(r: DbUserRow): UserRecord {
@@ -336,6 +371,10 @@ function fromRow(r: DbUserRow): UserRecord {
     paidUntil: r.paid_until, emailReports: r.email_reports,
     realtimeEnabled: r.realtime_enabled ?? false,
     isAdmin: r.is_admin ?? false,
+    accessSource: r.access_source ?? 'none',
+    adminNotes: r.admin_notes ?? null,
+    externalCustomerId: r.external_customer_id ?? null,
+    createdAt: r.created_at ?? null,
   };
 }
 
@@ -349,14 +388,15 @@ async function userId(email: string): Promise<string> {
 
 // Newer columns may not exist yet on a database that hasn't run the latest
 // migration. Select them, but fall back gracefully so the app keeps working.
-const USER_COLS = 'email, plan, sub_status, paid_until, email_reports, realtime_enabled, is_admin';
+const USER_COLS =
+  'email, plan, sub_status, paid_until, email_reports, realtime_enabled, is_admin, access_source, admin_notes, external_customer_id, created_at';
 const USER_COLS_NO_ADMIN = 'email, plan, sub_status, paid_until, email_reports, realtime_enabled';
 const USER_COLS_LEGACY = 'email, plan, sub_status, paid_until, email_reports';
 
 function isMissingColumn(err: { message?: string; code?: string } | null): boolean {
   const msg = err?.message ?? '';
   return !!err && (
-    /realtime_enabled|is_admin/.test(msg) ||
+    /realtime_enabled|is_admin|access_source|admin_notes/.test(msg) ||
     err.code === '42703' ||
     err.code === 'PGRST204'
   );
@@ -437,16 +477,22 @@ const supabaseStore: Store = {
     }));
   },
 
-  async setSubscription(email, plan, status, paidUntil) {
+  async setSubscription(email, plan, status, paidUntil, accessSource) {
     const db = createSupabaseAdminClient();
-    const { error } = await db.from('users').upsert(
-      {
-        email, plan, sub_status: status,
-        ...(paidUntil !== undefined ? { paid_until: paidUntil } : {}),
-      },
-      { onConflict: 'email' },
-    );
+    const row: Record<string, unknown> = {
+      email, plan, sub_status: status,
+      ...(paidUntil !== undefined ? { paid_until: paidUntil } : {}),
+      ...(accessSource !== undefined ? { access_source: accessSource } : {}),
+    };
+    const { error } = await db.from('users').upsert(row, { onConflict: 'email' });
     if (error) throw new Error(`setSubscription: ${error.message}`);
+  },
+
+  async setExternalCustomerId(email, customerId) {
+    const db = createSupabaseAdminClient();
+    const { error } = await db.from('users')
+      .upsert({ email, external_customer_id: customerId }, { onConflict: 'email' });
+    if (error) throw new Error(`setExternalCustomerId: ${error.message}`);
   },
 
   async setEmailReports(email, on) {
@@ -683,10 +729,25 @@ const supabaseStore: Store = {
 
   async listWaitlist() {
     const db = createSupabaseAdminClient();
-    const { data, error } = await db.from('waitlist')
+    const withStatus = await db.from('waitlist')
+      .select('email, tool, created_at, status').order('created_at', { ascending: false });
+    if (!withStatus.error) {
+      return (withStatus.data ?? []).map((r) => ({
+        email: r.email,
+        tool: r.tool,
+        createdAt: r.created_at,
+        status: r.status ? String(r.status) : 'new',
+      }));
+    }
+    const legacy = await db.from('waitlist')
       .select('email, tool, created_at').order('created_at', { ascending: false });
-    if (error) throw new Error(`listWaitlist: ${error.message}`);
-    return (data ?? []).map((r) => ({ email: r.email, tool: r.tool, createdAt: r.created_at }));
+    if (legacy.error) throw new Error(`listWaitlist: ${legacy.error.message}`);
+    return (legacy.data ?? []).map((r) => ({
+      email: r.email,
+      tool: r.tool,
+      createdAt: r.created_at,
+      status: 'new',
+    }));
   },
 
   async countTeams() {

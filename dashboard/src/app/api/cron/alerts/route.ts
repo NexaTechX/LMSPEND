@@ -83,5 +83,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     }
   }
 
+  const { setSystemMeta } = await import('@/lib/admin-ops');
+  await setSystemMeta('last_cron_alerts', new Date().toISOString());
+
   return NextResponse.json({ ok: true, ...results });
 }

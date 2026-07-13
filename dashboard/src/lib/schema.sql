@@ -14,9 +14,14 @@ create table if not exists users (
   email_reports boolean not null default true,         -- monthly report emails
   realtime_enabled boolean not null default false,     -- live watch daemon opt-in (paid)
   is_admin      boolean not null default false,        -- owner console (/admin)
+  access_source text not null default 'none',          -- none | payment | comp
+  admin_notes   text,                                  -- support notes (owner console)
   external_customer_id text,
   created_at    timestamptz not null default now()
 );
+create index if not exists users_email_idx on users (email);
+create index if not exists users_is_admin_idx on users (is_admin) where is_admin = true;
+create index if not exists users_sub_status_idx on users (sub_status);
 
 create table if not exists api_keys (
   key_hash      text primary key,                      -- sha256 of the raw key; raw is never stored
@@ -41,6 +46,7 @@ create table if not exists monthly_spend (
   synced_at     timestamptz not null default now(),
   primary key (user_id, month)
 );
+create index if not exists monthly_spend_month_idx on monthly_spend (month);
 
 create table if not exists budgets (
   user_id       uuid primary key references users(id) on delete cascade,
@@ -90,8 +96,29 @@ create table if not exists shares (
 create table if not exists waitlist (
   email         text not null,
   tool          text not null,
+  status        text not null default 'new',           -- new | contacted | converted
   created_at    timestamptz not null default now(),
   primary key (email, tool)
+);
+
+-- Owner-console audit trail (grant/revoke/promote/notes/…).
+create table if not exists admin_audit_log (
+  id            uuid primary key default gen_random_uuid(),
+  actor_email   text not null,
+  action        text not null,
+  target_email  text,
+  reason        text,
+  before_state  jsonb,
+  after_state   jsonb,
+  created_at    timestamptz not null default now()
+);
+create index if not exists admin_audit_created_idx on admin_audit_log (created_at desc);
+
+-- Lightweight key/value for ops health (last cron run, etc.).
+create table if not exists system_meta (
+  key           text primary key,
+  value         text not null,
+  updated_at    timestamptz not null default now()
 );
 
 -- Lock everything down: service role bypasses RLS; anon key gets nothing.
@@ -104,6 +131,8 @@ alter table waitlist enable row level security;
 alter table teams enable row level security;
 alter table team_members enable row level security;
 alter table team_invites enable row level security;
+alter table admin_audit_log enable row level security;
+alter table system_meta enable row level security;
 
 -- If upgrading an existing database, also run:
 -- alter table users add column if not exists paid_until timestamptz;
@@ -113,4 +142,8 @@ alter table team_invites enable row level security;
 -- alter table budgets alter column monthly_limit_usd drop not null;
 -- alter table users add column if not exists realtime_enabled boolean not null default false;
 -- alter table users add column if not exists is_admin boolean not null default false;
+-- alter table users add column if not exists access_source text not null default 'none';
+-- alter table users add column if not exists admin_notes text;
+-- alter table waitlist add column if not exists status text not null default 'new';
+-- (plus admin_audit_log / system_meta / indexes above if they don't exist yet)
 -- (plus the teams / team_members / team_invites blocks above if they don't exist yet)

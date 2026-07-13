@@ -28,11 +28,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         ? new Date(user.paidUntil)
         : new Date();
       base.setUTCDate(base.getUTCDate() + ACCESS_DAYS_PER_CHARGE);
-      await store.setSubscription(event.customerEmail, event.plan, 'active', base.toISOString());
+      await store.setSubscription(event.customerEmail, event.plan, 'active', base.toISOString(), 'payment');
+      const { setSystemMeta } = await import('@/lib/admin-ops');
+      await setSystemMeta('last_billing_webhook', new Date().toISOString());
       break;
     }
     case 'charge_failed':
       await store.setSubscription(event.customerEmail, event.plan, 'past_due');
+      {
+        const { setSystemMeta } = await import('@/lib/admin-ops');
+        await setSystemMeta('last_billing_webhook', new Date().toISOString());
+      }
       break;
   }
 

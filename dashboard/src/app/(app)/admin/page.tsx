@@ -2,12 +2,24 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { isAdminEmail, passcodeRequired, passcodeUnlocked } from '@/lib/admin';
+import {
+  currentUtcMonth,
+  getAdminOverview,
+  getSystemHealth,
+  listAdminAudit,
+  listAdminUsersPage,
+  listWaitlistEntries,
+} from '@/lib/admin-ops';
+import type { AdminUserFilter } from '@/lib/admin-types';
 import { currentUserEmail } from '@/lib/auth';
-import { PLAN_PRICES_USD } from '@/lib/billing/types';
-import { effectivePlan, isPaid, planBadge } from '@/lib/plan';
+import { isComped, isPaid, planBadge } from '@/lib/plan';
 import { pageMetadata } from '@/lib/seo';
-import { getStore } from '@/lib/store';
-import { grantPlan, lockAdmin, revokePlan, submitPasscode } from './actions';
+import {
+  lockAdmin,
+  submitPasscode,
+  updateWaitlistStatus,
+} from './actions';
+import { ConfirmGrantForm, ConfirmPromoteForm, ConfirmRevokeForm } from './confirm-forms';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,19 +32,38 @@ export const metadata: Metadata = pageMetadata({
 
 const usd = (n: number) => `$${n.toFixed(2)}`;
 
-function currentMonth(): string {
-  const d = new Date();
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
-}
+const FLASH_OK: Record<string, string> = {
+  granted: 'Plan granted.',
+  revoked: 'Access revoked.',
+  promoted: 'Admin promoted.',
+  demoted: 'Admin demoted.',
+  waitlist_updated: 'Waitlist updated.',
+  notes_saved: 'Notes saved.',
+  past_due: 'Marked past due.',
+  extended: 'Access extended.',
+};
 
-function PasscodeGate({ bad }: { bad: boolean }) {
+const FLASH_ERR: Record<string, string> = {
+  unauthorized: 'Not authorized.',
+  invalid_grant: 'Invalid grant input.',
+  invalid_email: 'Invalid email.',
+  reason_required: 'A reason is required.',
+  not_found: 'User not found.',
+  cannot_demote_self: 'You cannot demote yourself.',
+  last_admin: 'Cannot demote the last admin.',
+  invalid_waitlist: 'Invalid waitlist update.',
+  locked: 'Too many failed passcode attempts. Try again in 15 minutes.',
+};
+
+function PasscodeGate({ bad, locked }: { bad: boolean; locked: boolean }) {
   return (
     <main className="auth-wrap">
       <div className="auth-card">
         <Link href="/" className="wordmark">lmspend<span className="cursor">_</span></Link>
         <h1>Admin passcode</h1>
         <p className="muted">Second lock on the owner console. Enter your admin passcode.</p>
-        {bad && <div className="notice notice-err">Wrong passcode. Try again.</div>}
+        {locked && <div className="notice notice-err">{FLASH_ERR.locked}</div>}
+        {bad && !locked && <div className="notice notice-err">Wrong passcode. Try again.</div>}
         <form action={submitPasscode}>
           <input
             name="passcode"
@@ -42,8 +73,11 @@ function PasscodeGate({ bad }: { bad: boolean }) {
             className="input"
             required
             autoFocus
+            disabled={locked}
           />
-          <button type="submit" className="btn btn-primary btn-block">Unlock</button>
+          <button type="submit" className="btn btn-primary btn-block" disabled={locked}>
+            Unlock
+          </button>
         </form>
         <p className="muted small"><Link href="/dashboard">← back to dashboard</Link></p>
       </div>
@@ -51,50 +85,53 @@ function PasscodeGate({ bad }: { bad: boolean }) {
   );
 }
 
+function fmtTime(iso: string | null): string {
+  if (!iso) return 'never';
+  return new Date(iso).toISOString().replace('T', ' ').slice(0, 16) + 'Z';
+}
+
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ bad?: string }>;
+  searchParams: Promise<{
+    bad?: string;
+    err?: string;
+    ok?: string;
+    email?: string;
+    q?: string;
+    filter?: string;
+    page?: string;
+  }>;
 }) {
   const email = await currentUserEmail();
-  if (!(await isAdminEmail(email))) notFound(); // don't reveal the route exists to non-admins
+  if (!(await isAdminEmail(email))) notFound();
+
+  const sp = await searchParams;
 
   if (passcodeRequired() && !(await passcodeUnlocked())) {
-    const { bad } = await searchParams;
-    return <PasscodeGate bad={bad === '1'} />;
+    return <PasscodeGate bad={sp.bad === '1'} locked={sp.err === 'locked'} />;
   }
   const admin = email!;
 
-  const store = getStore();
-  const month = currentMonth();
-  const [users, teams, waitlist] = await Promise.all([
-    store.listUsers(),
-    store.countTeams(),
-    store.listWaitlist(),
+  const month = currentUtcMonth();
+  const q = sp.q ?? '';
+  const filter = (
+    ['all', 'paid', 'free', 'comp', 'admin'].includes(sp.filter ?? '')
+      ? sp.filter
+      : 'all'
+  ) as AdminUserFilter;
+  const page = Math.max(1, Number(sp.page ?? 1) || 1);
+
+  const [overview, listed, waitlist, audit, health] = await Promise.all([
+    getAdminOverview(month),
+    listAdminUsersPage({ q, filter, page, pageSize: 25, month }),
+    listWaitlistEntries(),
+    listAdminAudit(30),
+    getSystemHealth(),
   ]);
 
-  // Per-user current-month spend + roll-ups (small scale: fine to fan out).
-  const rows = await Promise.all(
-    users.map(async (u) => {
-      const months = await store.getSpend(u.email);
-      const cur = months.find((m) => m.month === month);
-      return {
-        user: u,
-        monthSpend: cur?.estimatedTotalUsd ?? 0,
-        lastSync: months[0]?.syncedAt ?? null,
-        monthsTracked: months.length,
-      };
-    }),
-  );
-
-  const paid = rows.filter((r) => isPaid(r.user));
-  const mrr = paid.reduce((s, r) => s + PLAN_PRICES_USD[effectivePlan(r.user) as 'solo' | 'team'], 0);
-  const trackedThisMonth = rows.reduce((s, r) => s + r.monthSpend, 0);
-  rows.sort((a, b) => Number(isPaid(b.user)) - Number(isPaid(a.user)) || b.monthSpend - a.monthSpend);
-
-  const waitlistCsv = `data:text/csv;charset=utf-8,${encodeURIComponent(
-    'email,tool,created_at\n' + waitlist.map((w) => `${w.email},${w.tool},${w.createdAt}`).join('\n'),
-  )}`;
+  const totalPages = Math.max(1, Math.ceil(listed.total / listed.pageSize));
+  const exportUsersHref = `/api/admin/export?kind=users&q=${encodeURIComponent(q)}&filter=${filter}`;
 
   return (
     <main>
@@ -110,59 +147,108 @@ export default async function AdminPage({
         </span>
       </div>
 
+      {sp.ok && FLASH_OK[sp.ok] && (
+        <div className="notice notice-ok" style={{ marginBottom: 14 }}>
+          {FLASH_OK[sp.ok]}{sp.email ? ` (${sp.email})` : ''}
+        </div>
+      )}
+      {sp.err && FLASH_ERR[sp.err] && (
+        <div className="notice notice-err" style={{ marginBottom: 14 }}>
+          {FLASH_ERR[sp.err]}
+        </div>
+      )}
+
       <div className="stat-row">
         <div className="stat">
-          <div className="label">MRR</div>
-          <div className="value">{usd(mrr)}</div>
-          <div className="sub">{paid.length} paying · goal $5,000</div>
+          <div className="label">Paid MRR</div>
+          <div className="value">{usd(overview.paidMrr)}</div>
+          <div className="sub">{overview.paidCount} paying</div>
+        </div>
+        <div className="stat">
+          <div className="label">Comped</div>
+          <div className="value">{usd(overview.compedMrr)}</div>
+          <div className="sub">{overview.compedCount} seats (not revenue)</div>
         </div>
         <div className="stat">
           <div className="label">Users</div>
-          <div className="value">{users.length}</div>
-          <div className="sub">{paid.length} paid · {users.length - paid.length} free</div>
-        </div>
-        <div className="stat">
-          <div className="label">Teams</div>
-          <div className="value">{teams}</div>
-          <div className="sub">workspaces created</div>
+          <div className="value">{overview.userCount}</div>
+          <div className="sub">{overview.teamCount} teams</div>
         </div>
         <div className="stat">
           <div className="label">Tracked · {month}</div>
-          <div className="value" style={{ fontSize: 22 }}>{usd(trackedThisMonth)}</div>
+          <div className="value" style={{ fontSize: 22 }}>{usd(overview.trackedThisMonth)}</div>
           <div className="sub">AI spend flowing through</div>
         </div>
       </div>
 
       <div className="panel">
-        <h2>Grant / comp a plan<span className="hint">fix a failed webhook, or gift access</span></h2>
-        <form action={grantPlan} style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <input name="email" type="email" placeholder="email@user.com" className="input" style={{ maxWidth: 260, margin: 0 }} required />
-          <select name="plan" className="input" style={{ maxWidth: 110, margin: 0 }} defaultValue="solo">
-            <option value="solo">solo</option>
-            <option value="team">team</option>
-          </select>
-          <input name="days" type="number" min="1" defaultValue={31} className="input" style={{ maxWidth: 90, margin: 0 }} />
-          <span className="muted small">days</span>
-          <button type="submit" className="btn btn-primary btn-sm">Grant</button>
-        </form>
+        <h2>System health</h2>
+        <div className="muted small" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px 18px' }}>
+          <span>payments: {health.paymentsEnabled ? 'on' : 'off'}</span>
+          <span>resend: {health.resendConfigured ? 'configured' : 'missing'}</span>
+          <span>cron secret: {health.cronSecretConfigured ? 'set' : 'open'}</span>
+          <span>supabase: {health.supabaseConfigured ? 'live' : 'dev memory'}</span>
+          <span>last cron: {fmtTime(health.lastCronAt)}</span>
+          <span>last billing webhook: {fmtTime(health.lastWebhookAt)}</span>
+        </div>
       </div>
 
       <div className="panel">
-        <h2>Users<span className="hint">{users.length} total</span></h2>
+        <h2>Grant / comp a plan<span className="hint">reason required · marked as comp</span></h2>
+        <ConfirmGrantForm />
+      </div>
+
+      <div className="panel">
+        <h2>
+          Users
+          <span className="hint">{listed.total} match · page {listed.page}/{totalPages}</span>
+          <a href={exportUsersHref} className="btn btn-ghost btn-sm" style={{ float: 'right' }}>
+            Export CSV
+          </a>
+        </h2>
+
+        <form method="get" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder="search email"
+            className="input"
+            style={{ maxWidth: 240, margin: 0 }}
+          />
+          <select name="filter" defaultValue={filter} className="input" style={{ maxWidth: 140, margin: 0 }}>
+            <option value="all">all</option>
+            <option value="paid">paid</option>
+            <option value="comp">comp</option>
+            <option value="free">free</option>
+            <option value="admin">admins</option>
+          </select>
+          <button type="submit" className="btn btn-ghost btn-sm">Filter</button>
+        </form>
+
         <div style={{ overflowX: 'auto' }}>
           <table>
             <thead>
               <tr>
-                <th>Email</th><th>Plan</th><th className="num">{month}</th>
-                <th>Renews / until</th><th>Last sync</th><th></th>
+                <th>Email</th>
+                <th>Plan</th>
+                <th className="num">{month}</th>
+                <th>Until</th>
+                <th>Last sync</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ user, monthSpend, lastSync }) => {
+              {listed.rows.map(({ user, monthSpend, lastSync }) => {
                 const badge = planBadge(user);
                 return (
                   <tr key={user.email}>
-                    <td className="mono">{user.email}</td>
+                    <td className="mono">
+                      <Link href={`/admin/users/${encodeURIComponent(user.email)}`}>
+                        {user.email}
+                      </Link>
+                      {user.isAdmin && <span className="badge" style={{ marginLeft: 6 }}>admin</span>}
+                      {isComped(user) && <span className="badge badge-amber" style={{ marginLeft: 6 }}>comp</span>}
+                    </td>
                     <td><span className={`badge ${badge.className}`}>{badge.label}</span></td>
                     <td className="num">{monthSpend > 0 ? usd(monthSpend) : '—'}</td>
                     <td className="muted small">
@@ -171,45 +257,103 @@ export default async function AdminPage({
                     <td className="muted small">
                       {lastSync ? new Date(lastSync).toISOString().slice(0, 10) : 'never'}
                     </td>
-                    <td style={{ textAlign: 'right' }}>
-                      {isPaid(user) && (
-                        <form action={revokePlan}>
-                          <input type="hidden" name="email" value={user.email} />
-                          <button type="submit" className="btn btn-danger btn-sm">Revoke</button>
-                        </form>
-                      )}
+                    <td style={{ textAlign: 'right', display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                      <ConfirmPromoteForm email={user.email} isAdmin={user.isAdmin} />
+                      {isPaid(user) && <ConfirmRevokeForm email={user.email} />}
                     </td>
                   </tr>
                 );
               })}
-              {rows.length === 0 && (
-                <tr><td colSpan={6} className="muted">No users yet. Sign-ups appear here.</td></tr>
+              {listed.rows.length === 0 && (
+                <tr><td colSpan={6} className="muted">No users match.</td></tr>
               )}
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+            {page > 1 && (
+              <Link
+                className="btn btn-ghost btn-sm"
+                href={`/admin?q=${encodeURIComponent(q)}&filter=${filter}&page=${page - 1}`}
+              >
+                ← prev
+              </Link>
+            )}
+            {page < totalPages && (
+              <Link
+                className="btn btn-ghost btn-sm"
+                href={`/admin?q=${encodeURIComponent(q)}&filter=${filter}&page=${page + 1}`}
+              >
+                next →
+              </Link>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="panel">
         <h2>
-          Waitlist<span className="hint">{waitlist.length} signups</span>
+          Waitlist
+          <span className="hint">{waitlist.length} signups</span>
           {waitlist.length > 0 && (
-            <a href={waitlistCsv} download="lmspend-waitlist.csv" className="btn btn-ghost btn-sm" style={{ float: 'right' }}>
+            <a href="/api/admin/export?kind=waitlist" className="btn btn-ghost btn-sm" style={{ float: 'right' }}>
               Export CSV
             </a>
           )}
         </h2>
         {waitlist.length === 0 ? (
-          <p className="muted small">No waitlist signups yet. The Cursor page feeds this list.</p>
+          <p className="muted small">No waitlist signups yet.</p>
         ) : (
           <table>
-            <thead><tr><th>Email</th><th>Tool</th><th>When</th></tr></thead>
+            <thead><tr><th>Email</th><th>Tool</th><th>Status</th><th>When</th></tr></thead>
             <tbody>
               {waitlist.slice(0, 50).map((w) => (
                 <tr key={`${w.tool}:${w.email}`}>
                   <td className="mono">{w.email}</td>
                   <td>{w.tool}</td>
+                  <td>
+                    <form action={updateWaitlistStatus} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <input type="hidden" name="email" value={w.email} />
+                      <input type="hidden" name="tool" value={w.tool} />
+                      <select name="status" defaultValue={w.status} className="input" style={{ margin: 0, maxWidth: 130 }}>
+                        <option value="new">new</option>
+                        <option value="contacted">contacted</option>
+                        <option value="converted">converted</option>
+                      </select>
+                      <button type="submit" className="btn btn-ghost btn-sm">Save</button>
+                    </form>
+                  </td>
                   <td className="muted small">{new Date(w.createdAt).toISOString().slice(0, 10)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="panel">
+        <h2>Recent activity<span className="hint">{audit.length} events</span></h2>
+        {audit.length === 0 ? (
+          <p className="muted small">No admin actions logged yet.</p>
+        ) : (
+          <table>
+            <thead>
+              <tr><th>When</th><th>Actor</th><th>Action</th><th>Target</th><th>Reason</th></tr>
+            </thead>
+            <tbody>
+              {audit.map((a) => (
+                <tr key={a.id}>
+                  <td className="muted small">{fmtTime(a.createdAt)}</td>
+                  <td className="mono small">{a.actorEmail}</td>
+                  <td>{a.action}</td>
+                  <td className="mono small">
+                    {a.targetEmail ? (
+                      <Link href={`/admin/users/${encodeURIComponent(a.targetEmail)}`}>{a.targetEmail}</Link>
+                    ) : '—'}
+                  </td>
+                  <td className="muted small">{a.reason ?? '—'}</td>
                 </tr>
               ))}
             </tbody>
