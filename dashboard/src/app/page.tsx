@@ -381,17 +381,33 @@ export default function Home() {
       </main>
 
       <footer className="footer">
-        <span className="wordmark">lmspend<span className="cursor">_</span></span>
-        <span>Estimates at API list prices. Not affiliated with Anthropic, OpenAI, Google, or Cursor.</span>
-        <span>
-          <a href="https://github.com/NexaTechX/LMSPEND" target="_blank" rel="noopener noreferrer">GitHub</a>
-          {' · '}
-          <a href="#pricing">Pricing</a>
-          {' · '}
-          <a href="#faq">FAQ</a>
-          {' · '}
-          <Link href="/login">Sign in</Link>
-        </span>
+        <div className="footer-row">
+          <span className="wordmark">lmspend<span className="cursor">_</span></span>
+          <span>Estimates at API list prices. Not affiliated with Anthropic, OpenAI, Google, or Cursor.</span>
+          <span>
+            <a href="https://github.com/NexaTechX/LMSPEND" target="_blank" rel="noopener noreferrer">GitHub</a>
+            {' · '}
+            <a href="#pricing">Pricing</a>
+            {' · '}
+            <a href="#faq">FAQ</a>
+            {' · '}
+            <Link href="/login">Sign in</Link>
+          </span>
+        </div>
+        <a
+          href="https://www.producthunt.com/products/lmspend?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-lmspend"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="ph-badge"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            alt="LMspend - Know what u and ur team actually spend on AI coding tools | Product Hunt"
+            width={250}
+            height={54}
+            src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1196215&theme=dark&t=1784032878592"
+          />
+        </a>
       </footer>
     </div>
   );

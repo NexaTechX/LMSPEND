@@ -410,12 +410,26 @@ td.num, th.num { text-align: right; }
   border-top: 1px solid var(--line-soft);
   padding: 40px 32px;
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 20px;
+  color: var(--faint);
+  font-size: 13px;
+}
+.footer-row {
+  display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  color: var(--faint);
-  font-size: 13px;
   flex-wrap: wrap;
+  width: 100%;
+}
+.ph-badge {
+  display: inline-block;
+  line-height: 0;
+}
+.ph-badge img {
+  display: block;
 }
 
 /* ----------------------------- Auth pages ----------------------------- */
